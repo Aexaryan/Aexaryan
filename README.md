@@ -1,4 +1,4 @@
-- 👋 Hi, I’m @Aexaryan
+- 👋 Hi, I’m @Alexaryan
 - 👀 I’m interested in AI and Blockchain
 - 🌱 I’m currently learning Programing
 - 💞️ I’m looking to collaborate on My Blockchain gaming project
