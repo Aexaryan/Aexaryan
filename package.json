@@ -1,0 +1,19 @@
+{
+  "name": "casting-platform",
+  "version": "1.0.0",
+  "description": "A comprehensive casting platform connecting talents with casting directors",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "setup": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": ["casting", "talent", "entertainment", "acting", "modeling"],
+  "author": "Alexander Aryanfar",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
