@@ -1,156 +1,216 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { ethers } = require('ethers');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
+const TalentProfile = require('../models/TalentProfile');
+const CastingDirectorProfile = require('../models/CastingDirectorProfile');
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register with wallet
-router.post('/wallet-register', async (req, res) => {
-  try {
-    const { address, signature, message, username } = req.body;
+// Generate JWT Token
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
+};
 
-    // Verify signature
-    const recoveredAddress = ethers.verifyMessage(message, signature);
-    if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-      return res.status(400).json({ error: 'Invalid signature' });
+// Register
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, role, firstName, lastName } = req.body;
+
+    // Validation
+    if (!email || !password || !role || !firstName || !lastName) {
+      return res.status(400).json({ error: 'تمام فیلدهای ضروری را پر کنید' });
+    }
+
+    if (!['talent', 'casting_director'].includes(role)) {
+      return res.status(400).json({ error: 'نقش کاربری نامعتبر' });
     }
 
     // Check if user already exists
-    let user = await User.findOne({ walletAddress: address.toLowerCase() });
-    if (user) {
-      return res.status(400).json({ error: 'Wallet already registered' });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ error: 'کاربری با این ایمیل قبلاً ثبت نام کرده است' });
     }
 
-    // Create new user
-    user = new User({
-      username: username || `Player_${address.slice(0, 6)}`,
-      walletAddress: address.toLowerCase(),
-      level: 1,
-      experience: 0,
-      gamesPlayed: 0,
-      gamesWon: 0
+    // Create user
+    const user = new User({
+      email: email.toLowerCase(),
+      password,
+      role
     });
 
     await user.save();
 
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user._id, walletAddress: user.walletAddress },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
+    // Create profile based on role
+    if (role === 'talent') {
+      const talentProfile = new TalentProfile({
+        user: user._id,
+        firstName,
+        lastName,
+        artisticName: `${firstName} ${lastName}`,
+        dateOfBirth: new Date('1990-01-01'), // Default, user will update
+        gender: 'other', // Default, user will update
+        city: 'تهران', // Default
+        province: 'تهران' // Default
+      });
+      await talentProfile.save();
+    } else {
+      const directorProfile = new CastingDirectorProfile({
+        user: user._id,
+        firstName,
+        lastName,
+        city: 'تهران', // Default
+        province: 'تهران' // Default
+      });
+      await directorProfile.save();
+    }
 
-    res.json({
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(201).json({
       success: true,
+      message: 'ثبت نام با موفقیت انجام شد',
       token,
       user: {
         id: user._id,
-        username: user.username,
-        walletAddress: user.walletAddress,
-        level: user.level,
-        experience: user.experience
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified
       }
     });
   } catch (error) {
-    console.error('Wallet registration error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'خطا در ثبت نام' });
   }
 });
 
-// Login with wallet
-router.post('/wallet-login', async (req, res) => {
+// Login
+router.post('/login', async (req, res) => {
   try {
-    const { address, signature, message } = req.body;
+    const { email, password } = req.body;
 
-    // Verify signature
-    const recoveredAddress = ethers.verifyMessage(message, signature);
-    if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-      return res.status(400).json({ error: 'Invalid signature' });
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ error: 'ایمیل و رمز عبور را وارد کنید' });
     }
 
     // Find user
-    const user = await User.findOne({ walletAddress: address.toLowerCase() });
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(404).json({ error: 'User not found. Please register first.' });
+      return res.status(401).json({ error: 'ایمیل یا رمز عبور اشتباه است' });
+    }
+
+    // Check password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'ایمیل یا رمز عبور اشتباه است' });
     }
 
     // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user._id, walletAddress: user.walletAddress },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
-    );
+    // Generate token
+    const token = generateToken(user._id);
 
     res.json({
       success: true,
+      message: 'ورود با موفقیت انجام شد',
       token,
       user: {
         id: user._id,
-        username: user.username,
-        walletAddress: user.walletAddress,
-        level: user.level,
-        experience: user.experience,
-        gamesPlayed: user.gamesPlayed,
-        gamesWon: user.gamesWon
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        lastLogin: user.lastLogin
       }
     });
   } catch (error) {
-    console.error('Wallet login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'خطا در ورود' });
   }
 });
 
-// Get user profile
-router.get('/profile', auth, async (req, res) => {
+// Get current user
+router.get('/me', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-__v');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    let profile = null;
+    
+    if (req.user.role === 'talent') {
+      profile = await TalentProfile.findOne({ user: req.user._id });
+    } else if (req.user.role === 'casting_director') {
+      profile = await CastingDirectorProfile.findOne({ user: req.user._id });
     }
 
-    res.json({ success: true, user });
+    res.json({
+      success: true,
+      user: {
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role,
+        isVerified: req.user.isVerified,
+        lastLogin: req.user.lastLogin,
+        createdAt: req.user.createdAt
+      },
+      profile
+    });
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    res.status(500).json({ error: 'Server error fetching profile' });
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'خطا در دریافت اطلاعات کاربر' });
   }
 });
 
-// Update user profile
-router.put('/profile', auth, async (req, res) => {
+// Change password
+router.put('/change-password', auth, async (req, res) => {
   try {
-    const { username, avatar } = req.body;
-    const user = await User.findById(req.user.userId);
+    const { currentPassword, newPassword } = req.body;
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'رمز عبور فعلی و جدید را وارد کنید' });
     }
 
-    if (username) user.username = username;
-    if (avatar) user.avatar = avatar;
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد' });
+    }
 
+    // Get user with password
+    const user = await User.findById(req.user._id);
+    
+    // Check current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'رمز عبور فعلی اشتباه است' });
+    }
+
+    // Update password
+    user.password = newPassword;
     await user.save();
 
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        walletAddress: user.walletAddress,
-        level: user.level,
-        experience: user.experience,
-        avatar: user.avatar
-      }
+      message: 'رمز عبور با موفقیت تغییر کرد'
     });
   } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ error: 'Server error updating profile' });
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'خطا در تغییر رمز عبور' });
+  }
+});
+
+// Logout (client-side token removal, but we can log it)
+router.post('/logout', auth, async (req, res) => {
+  try {
+    // In a more complex setup, you might want to blacklist the token
+    // For now, we just confirm the logout
+    res.json({
+      success: true,
+      message: 'خروج با موفقیت انجام شد'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'خطا در خروج' });
   }
 });
 

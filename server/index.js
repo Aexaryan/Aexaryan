@@ -5,20 +5,11 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
-const { Server } = require('socket.io');
-const http = require('http');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
-});
 
 // Middleware
 app.use(helmet());
@@ -39,28 +30,10 @@ app.use(limiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/game', require('./routes/game'));
-app.use('/api/nft', require('./routes/nft'));
-app.use('/api/leaderboard', require('./routes/leaderboard'));
-app.use('/api/marketplace', require('./routes/marketplace'));
-
-// WebSocket connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-
-  socket.on('join-game', (gameId) => {
-    socket.join(gameId);
-    socket.to(gameId).emit('player-joined', socket.id);
-  });
-
-  socket.on('game-action', (data) => {
-    socket.to(data.gameId).emit('game-update', data);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
-});
+app.use('/api/talents', require('./routes/talents'));
+app.use('/api/castings', require('./routes/castings'));
+app.use('/api/applications', require('./routes/applications'));
+app.use('/api/upload', require('./routes/upload'));
 
 // MongoDB connection
 const connectDB = async () => {
@@ -78,28 +51,32 @@ const connectDB = async () => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'Casting Platform API'
+  });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: 'خطایی در سرور رخ داده است!' });
 });
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ error: 'مسیر مورد نظر یافت نشد' });
 });
 
 const PORT = process.env.PORT || 5000;
 
 // Start server
 connectDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+  app.listen(PORT, () => {
+    console.log(`🎬 Casting Platform Server running on port ${PORT}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/health`);
   });
 });
 
-module.exports = { app, io };
+module.exports = app;

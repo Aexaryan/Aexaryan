@@ -1,19 +1,16 @@
 {
-  "name": "blockchain-gaming-platform",
+  "name": "casting-platform",
   "version": "1.0.0",
-  "description": "A blockchain-based gaming platform with NFT integration",
+  "description": "A comprehensive casting platform connecting talents with casting directors",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
-    "deploy:contracts": "cd contracts && npx hardhat run scripts/deploy.js --network localhost",
-    "compile:contracts": "cd contracts && npx hardhat compile",
-    "test:contracts": "cd contracts && npx hardhat test",
-    "setup": "npm install && cd server && npm install && cd ../client && npm install && cd ../contracts && npm install"
+    "setup": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["blockchain", "gaming", "nft", "web3", "ethereum"],
+  "keywords": ["casting", "talent", "entertainment", "acting", "modeling"],
   "author": "Alexander Aryanfar",
   "license": "MIT",
   "devDependencies": {
