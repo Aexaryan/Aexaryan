@@ -1,0 +1,22 @@
+{
+  "name": "blockchain-gaming-platform",
+  "version": "1.0.0",
+  "description": "A blockchain-based gaming platform with NFT integration",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "deploy:contracts": "cd contracts && npx hardhat run scripts/deploy.js --network localhost",
+    "compile:contracts": "cd contracts && npx hardhat compile",
+    "test:contracts": "cd contracts && npx hardhat test",
+    "setup": "npm install && cd server && npm install && cd ../client && npm install && cd ../contracts && npm install"
+  },
+  "keywords": ["blockchain", "gaming", "nft", "web3", "ethereum"],
+  "author": "Alexander Aryanfar",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
