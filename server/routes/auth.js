@@ -4,6 +4,7 @@ const User = require('../models/User');
 const TalentProfile = require('../models/TalentProfile');
 const CastingDirectorProfile = require('../models/CastingDirectorProfile');
 const { auth } = require('../middleware/auth');
+const checkDB = require('../middleware/dbCheck');
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ const generateToken = (userId) => {
 };
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', checkDB, async (req, res) => {
   try {
     const { email, password, role, firstName, lastName } = req.body;
 
@@ -88,7 +89,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', checkDB, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -135,7 +136,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user
-router.get('/me', auth, async (req, res) => {
+router.get('/me', auth, checkDB, async (req, res) => {
   try {
     let profile = null;
     

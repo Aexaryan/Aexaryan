@@ -40,12 +40,19 @@ const connectDB = async () => {
   try {
     if (process.env.MONGODB_URI) {
       await mongoose.connect(process.env.MONGODB_URI);
-      console.log('MongoDB connected successfully');
+      console.log('✅ MongoDB connected successfully');
     } else {
-      console.log('MongoDB URI not provided, running without database');
+      console.log('⚠️  MongoDB URI not provided, running without database');
     }
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('❌ MongoDB connection error:', error.message);
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ Cannot start in production without database connection');
+      process.exit(1);
+    } else {
+      console.log('⚠️  Running in development mode without database');
+      console.log('💡 To use database features, start MongoDB or set MONGODB_URI');
+    }
   }
 };
 
@@ -72,11 +79,42 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 // Start server
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🎬 Casting Platform Server running on port ${PORT}`);
-    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-  });
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    
+    const server = app.listen(PORT, () => {
+      console.log(`🎬 Casting Platform Server running on port ${PORT}`);
+      console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+    });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Please try a different port or stop the process using this port.`);
+        console.log(`💡 You can set a different port using the PORT environment variable: PORT=5001 npm run dev`);
+        process.exit(1);
+      } else {
+        console.error('❌ Server error:', error);
+        process.exit(1);
+      }
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('🛑 SIGTERM received, shutting down gracefully');
+      server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+      });
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 module.exports = app;
