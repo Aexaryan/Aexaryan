@@ -38,14 +38,15 @@ app.use('/api/upload', require('./routes/upload'));
 // MongoDB connection
 const connectDB = async () => {
   try {
-    if (process.env.MONGODB_URI) {
+    if (process.env.MONGODB_URI && process.env.NODE_ENV === 'production') {
       await mongoose.connect(process.env.MONGODB_URI);
       console.log('MongoDB connected successfully');
     } else {
-      console.log('MongoDB URI not provided, running without database');
+      console.log('Running in development mode without database connection');
     }
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    console.log('Continuing without database connection...');
   }
 };
 
@@ -76,7 +77,14 @@ connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🎬 Casting Platform Server running on port ${PORT}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  }).on('error', (error) => {
+    console.error('Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Please try a different port.`);
+    }
   });
+}).catch((error) => {
+  console.error('Failed to start server:', error);
 });
 
 module.exports = app;
