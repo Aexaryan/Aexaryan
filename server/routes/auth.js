@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const TalentProfile = require('../models/TalentProfile');
 const CastingDirectorProfile = require('../models/CastingDirectorProfile');
@@ -26,6 +27,11 @@ router.post('/register', async (req, res) => {
 
     if (!['talent', 'casting_director'].includes(role)) {
       return res.status(400).json({ error: 'نقش کاربری نامعتبر' });
+    }
+
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'سرویس پایگاه داده در دسترس نیست' });
     }
 
     // Check if user already exists
@@ -95,6 +101,11 @@ router.post('/login', async (req, res) => {
     // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'ایمیل و رمز عبور را وارد کنید' });
+    }
+
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: 'سرویس پایگاه داده در دسترس نیست' });
     }
 
     // Find user
