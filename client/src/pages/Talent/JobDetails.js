@@ -8,12 +8,10 @@ import {
   ArrowRightIcon,
   MapPinIcon,
   CalendarDaysIcon,
-  CurrencyDollarIcon,
   ClockIcon,
   EyeIcon,
   DocumentTextIcon,
   UserIcon,
-  BuildingOfficeIcon,
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
@@ -248,7 +246,6 @@ const JobDetails = () => {
             <div className="card">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">الزامات</h2>
               <div className="space-y-4">
-                {/* Age Range */}
                 {casting.requirements.ageRange?.min && casting.requirements.ageRange?.max && (
                   <div>
                     <h3 className="font-medium text-gray-900 mb-2">محدوده سنی</h3>
@@ -258,7 +255,6 @@ const JobDetails = () => {
                   </div>
                 )}
 
-                {/* Gender */}
                 {casting.requirements.gender && casting.requirements.gender !== 'any' && (
                   <div>
                     <h3 className="font-medium text-gray-900 mb-2">جنسیت</h3>
@@ -269,7 +265,6 @@ const JobDetails = () => {
                   </div>
                 )}
 
-                {/* Required Skills */}
                 {casting.requirements.requiredSkills?.length > 0 && (
                   <div>
                     <h3 className="font-medium text-gray-900 mb-2">مهارت‌های مورد نیاز</h3>
