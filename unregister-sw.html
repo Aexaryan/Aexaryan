@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unregister Service Worker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Complete Service Worker Removal</h1>
+        <p>This will completely remove all service worker and PWA functionality from your application.</p>
+        
+        <div id="status" class="status info">
+            Click the button below to completely remove service workers and PWA functionality.
+        </div>
+        
+        <button onclick="completeRemoval()">🚫 Remove All Service Workers & PWA</button>
+        <button onclick="checkStatus()">🔍 Check Current Status</button>
+        <button onclick="goToApp()">🏠 Go to Application</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+        }
+
+        async function completeRemoval() {
+            try {
+                updateStatus('Starting complete removal process...', 'info');
+                
+                // Step 1: Unregister all service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        addResult(`✅ Unregistered service worker: ${registration.scope}`, 'success');
+                    }
+                    
+                    if (registrations.length === 0) {
+                        addResult('ℹ️ No service workers found to unregister', 'info');
+                    }
+                } else {
+                    addResult('ℹ️ Service Worker not supported in this browser', 'info');
+                }
+                
+                // Step 2: Clear all caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    
+                    for (let cacheName of cacheNames) {
+                        await caches.delete(cacheName);
+                        addResult(`🗑️ Deleted cache: ${cacheName}`, 'success');
+                    }
+                    
+                    if (cacheNames.length === 0) {
+                        addResult('ℹ️ No caches found to clear', 'info');
+                    }
+                } else {
+                    addResult('ℹ️ Cache API not supported in this browser', 'info');
+                }
+                
+                // Step 3: Clear localStorage and sessionStorage
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    addResult('🗑️ Cleared localStorage and sessionStorage', 'success');
+                } catch (error) {
+                    addResult(`⚠️ Could not clear storage: ${error.message}`, 'warning');
+                }
+                
+                // Step 4: Clear IndexedDB
+                if ('indexedDB' in window) {
+                    try {
+                        const databases = await indexedDB.databases();
+                        for (let db of databases) {
+                            indexedDB.deleteDatabase(db.name);
+                            addResult(`🗑️ Deleted IndexedDB: ${db.name}`, 'success');
+                        }
+                    } catch (error) {
+                        addResult(`ℹ️ IndexedDB clearing not supported: ${error.message}`, 'info');
+                    }
+                }
+                
+                updateStatus('✅ Complete removal finished! Service workers and PWA functionality have been removed.', 'success');
+                addResult('🎉 Your application is now completely free of service workers and PWA functionality!', 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Error during removal: ${error.message}`, 'error');
+                addResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                updateStatus('Checking current status...', 'info');
+                
+                // Check service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    if (registrations.length === 0) {
+                        addResult('✅ No service workers registered', 'success');
+                    } else {
+                        addResult(`⚠️ Found ${registrations.length} service worker(s) still registered`, 'warning');
+                        registrations.forEach((registration, index) => {
+                            addResult(`  - Service Worker ${index + 1}: ${registration.scope}`, 'warning');
+                        });
+                    }
+                } else {
+                    addResult('ℹ️ Service Worker not supported in this browser', 'info');
+                }
+                
+                // Check caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    
+                    if (cacheNames.length === 0) {
+                        addResult('✅ No caches found', 'success');
+                    } else {
+                        addResult(`⚠️ Found ${cacheNames.length} cache(s) still present`, 'warning');
+                        cacheNames.forEach(cacheName => {
+                            addResult(`  - Cache: ${cacheName}`, 'warning');
+                        });
+                    }
+                } else {
+                    addResult('ℹ️ Cache API not supported in this browser', 'info');
+                }
+                
+                // Check storage
+                const localStorageSize = Object.keys(localStorage).length;
+                const sessionStorageSize = Object.keys(sessionStorage).length;
+                
+                if (localStorageSize === 0 && sessionStorageSize === 0) {
+                    addResult('✅ No data in localStorage or sessionStorage', 'success');
+                } else {
+                    addResult(`⚠️ Found data in storage (localStorage: ${localStorageSize}, sessionStorage: ${sessionStorageSize})`, 'warning');
+                }
+                
+                updateStatus('Status check completed!', 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Error checking status: ${error.message}`, 'error');
+                addResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function goToApp() {
+            updateStatus('Redirecting to main application...', 'info');
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000';
+            }, 1000);
+        }
+
+        // Auto-check status on page load
+        window.addEventListener('load', () => {
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

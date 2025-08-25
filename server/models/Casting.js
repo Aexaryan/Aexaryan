@@ -115,6 +115,22 @@ const castingSchema = new mongoose.Schema({
     additionalBenefits: String
   },
   
+  // Photos
+  photos: [{
+    url: {
+      type: String,
+      required: true
+    },
+    caption: {
+      type: String,
+      maxlength: 200
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   // Application Details
   applicationDeadline: {
     type: Date,
@@ -187,6 +203,15 @@ castingSchema.pre('save', function(next) {
   // Set publishedAt when status changes to active
   if (this.isModified('status') && this.status === 'active' && !this.publishedAt) {
     this.publishedAt = Date.now();
+  }
+  
+  // Validate photos requirement (only for new castings being set to active)
+  if (this.isModified('status') && this.status === 'active' && (!this.photos || this.photos.length === 0)) {
+    return next(new Error('At least one photo is required for active castings'));
+  }
+  
+  if (this.photos && this.photos.length > 4) {
+    return next(new Error('Maximum 4 photos allowed per casting'));
   }
   
   next();

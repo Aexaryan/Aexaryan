@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useSearchParams } from 'react-router-dom';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
+import ApprovalBadge from '../../components/Common/ApprovalBadge';
+import StartConversationButton from '../../components/Messaging/StartConversationButton';
+import ReportButton from '../../components/Common/ReportButton';
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -12,10 +15,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 const SearchTalents = () => {
+  const [searchParams] = useSearchParams();
   const [talents, setTalents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    search: '',
+    search: searchParams.get('search') || '',
     gender: '',
     ageMin: '',
     ageMax: '',
@@ -36,7 +40,7 @@ const SearchTalents = () => {
 
   useEffect(() => {
     fetchTalents();
-  }, [filters, pagination.currentPage]);
+  }, [filters, pagination.currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTalents = async (page = 1) => {
     try {
@@ -51,8 +55,14 @@ const SearchTalents = () => {
       
       params.append('page', page);
       params.append('limit', 12);
+      // Removed timestamp to prevent infinite refresh
 
-      const response = await axios.get(`/talents?${params.toString()}`);
+      const response = await api.get(`/talents?${params.toString()}`);
+      console.log('SearchTalents API Response:', response.data);
+      console.log('Talents array:', response.data.talents);
+      if (response.data.talents && response.data.talents.length > 0) {
+        console.log('First talent identificationStatus:', response.data.talents[0].identificationStatus);
+      }
       setTalents(response.data.talents || []);
       setPagination(response.data.pagination || {});
     } catch (error) {
@@ -311,9 +321,14 @@ const SearchTalents = () => {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {talent.artisticName}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {talent.artisticName}
+                    </h3>
+                    {talent.identificationStatus === 'approved' && (
+                      <ApprovalBadge size="sm" />
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                     <span>{talent.age} سال</span>
                     {talent.height && <span>• {talent.height} سانتی‌متر</span>}
@@ -376,18 +391,33 @@ const SearchTalents = () => {
               )}
 
               {/* Footer */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-200 space-y-3">
                 <div className="flex items-center text-sm text-gray-500">
                   <EyeIcon className="w-4 h-4 ml-1" />
                   {talent.profileViews || 0} بازدید
                 </div>
                 
-                <Link
-                  to={`/director/talents/${talent._id}`}
-                  className="btn-primary btn-sm"
-                >
-                  مشاهده پروفایل
-                </Link>
+                <div className="flex gap-2">
+                  <Link
+                    to={`/director/talents/${talent._id}`}
+                    className="btn-outline btn-sm flex-1 text-center"
+                  >
+                    مشاهده پروفایل
+                  </Link>
+                  <StartConversationButton 
+                    talent={talent}
+                    className="btn-sm flex-1"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <ReportButton
+                    reportType="user"
+                    targetId={talent._id}
+                    targetTitle={talent.artisticName}
+                    variant="icon"
+                    className="text-gray-400 hover:text-red-500"
+                  />
+                </div>
               </div>
             </div>
           ))}

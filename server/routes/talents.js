@@ -5,6 +5,104 @@ const { auth, requireTalent, requireCastingDirector } = require('../middleware/a
 
 const router = express.Router();
 
+
+
+// Get featured talents (public)
+router.get('/featured', async (req, res) => {
+  try {
+    const { limit = 8 } = req.query;
+    
+    // Use aggregation to properly include user data
+    const pipeline = [
+      {
+        $match: {
+          isActive: true,
+          isFeatured: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          let: { userId: '$user' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$userId'] }
+              }
+            }
+          ],
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $addFields: {
+          identificationStatus: { $ifNull: ['$user.identificationStatus', 'not_submitted'] }
+        }
+      },
+      {
+        $sort: { featuredAt: -1, createdAt: -1 }
+      },
+      {
+        $limit: parseInt(limit)
+      }
+    ];
+
+    let featuredTalents = await TalentProfile.aggregate(pipeline);
+
+    // If no featured talents, get some active talents
+    if (featuredTalents.length === 0) {
+      const fallbackPipeline = [
+        {
+          $match: {
+            isActive: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            let: { userId: '$user' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$_id', '$$userId'] }
+                }
+              }
+            ],
+            as: 'user'
+          }
+        },
+        {
+          $unwind: '$user'
+        },
+        {
+          $addFields: {
+            identificationStatus: { $ifNull: ['$user.identificationStatus', 'not_submitted'] }
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $limit: parseInt(limit)
+        }
+      ];
+
+      featuredTalents = await TalentProfile.aggregate(fallbackPipeline);
+    }
+
+    res.json({
+      success: true,
+      talents: featuredTalents
+    });
+  } catch (error) {
+    console.error('Get featured talents error:', error);
+    res.status(500).json({ error: 'خطا در دریافت استعدادهای ویژه' });
+  }
+});
+
 // Get all talents (for casting directors)
 router.get('/', auth, requireCastingDirector, async (req, res) => {
   try {
@@ -121,6 +219,11 @@ router.get('/', auth, requireCastingDirector, async (req, res) => {
       }
     });
     pipeline.push({ $unwind: '$user' });
+    pipeline.push({
+      $addFields: {
+        identificationStatus: { $ifNull: ['$user.identificationStatus', 'not_submitted'] }
+      }
+    });
 
     // Execute aggregation
     const talents = await TalentProfile.aggregate(pipeline);
@@ -154,7 +257,7 @@ router.get('/', auth, requireCastingDirector, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const talent = await TalentProfile.findById(req.params.id)
-      .populate('user', 'email createdAt lastLogin');
+      .populate('user', 'email createdAt lastLogin identificationStatus firstName lastName');
 
     if (!talent) {
       return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
@@ -196,6 +299,19 @@ router.put('/profile', auth, requireTalent, async (req, res) => {
 
     if (!talent) {
       return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    // Sync the updated names with the user model
+    if (updates.firstName || updates.lastName) {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          firstName: talent.firstName,
+          lastName: talent.lastName
+        },
+        { new: true }
+      );
     }
 
     res.json({
@@ -289,6 +405,200 @@ router.delete('/profile/skills/:skill', auth, requireTalent, async (req, res) =>
   } catch (error) {
     console.error('Remove skill error:', error);
     res.status(500).json({ error: 'خطا در حذف مهارت' });
+  }
+});
+
+// Add showreel video to talent profile
+router.post('/profile/showreel', auth, requireTalent, async (req, res) => {
+  try {
+    const { title, url, platform, description, duration } = req.body;
+    
+    if (!title || !url) {
+      return res.status(400).json({ error: 'عنوان و لینک ویدیو ضروری است' });
+    }
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    talent.showreel.push({
+      title: title.trim(),
+      url: url.trim(),
+      platform: platform || 'youtube',
+      description: description?.trim(),
+      duration: duration
+    });
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'ویدیو شوریل با موفقیت اضافه شد',
+      showreel: talent.showreel
+    });
+  } catch (error) {
+    console.error('Add showreel error:', error);
+    res.status(500).json({ error: 'خطا در اضافه کردن ویدیو شوریل' });
+  }
+});
+
+// Remove showreel video from talent profile
+router.delete('/profile/showreel/:index', auth, requireTalent, async (req, res) => {
+  try {
+    const index = parseInt(req.params.index);
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    if (index < 0 || index >= talent.showreel.length) {
+      return res.status(400).json({ error: 'شاخص ویدیو نامعتبر است' });
+    }
+
+    talent.showreel.splice(index, 1);
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'ویدیو شوریل با موفقیت حذف شد',
+      showreel: talent.showreel
+    });
+  } catch (error) {
+    console.error('Remove showreel error:', error);
+    res.status(500).json({ error: 'خطا در حذف ویدیو شوریل' });
+  }
+});
+
+// Add experience to talent profile
+router.post('/profile/experience', auth, requireTalent, async (req, res) => {
+  try {
+    const { title, company, projectType, role, startDate, endDate, description, director, productionCompany, isCurrent } = req.body;
+    
+    if (!title || !company || !projectType || !role || !startDate) {
+      return res.status(400).json({ error: 'تمام فیلدهای ضروری را پر کنید' });
+    }
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    talent.experience.push({
+      title: title.trim(),
+      company: company.trim(),
+      projectType,
+      role: role.trim(),
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : null,
+      description: description?.trim(),
+      director: director?.trim(),
+      productionCompany: productionCompany?.trim(),
+      isCurrent: isCurrent || false
+    });
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'تجربه با موفقیت اضافه شد',
+      experience: talent.experience
+    });
+  } catch (error) {
+    console.error('Add experience error:', error);
+    res.status(500).json({ error: 'خطا در اضافه کردن تجربه' });
+  }
+});
+
+// Remove experience from talent profile
+router.delete('/profile/experience/:index', auth, requireTalent, async (req, res) => {
+  try {
+    const index = parseInt(req.params.index);
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    if (index < 0 || index >= talent.experience.length) {
+      return res.status(400).json({ error: 'شاخص تجربه نامعتبر است' });
+    }
+
+    talent.experience.splice(index, 1);
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'تجربه با موفقیت حذف شد',
+      experience: talent.experience
+    });
+  } catch (error) {
+    console.error('Remove experience error:', error);
+    res.status(500).json({ error: 'خطا در حذف تجربه' });
+  }
+});
+
+// Add education to talent profile
+router.post('/profile/education', auth, requireTalent, async (req, res) => {
+  try {
+    const { degree, institution, field, startDate, endDate, grade, description, isCurrent } = req.body;
+    
+    if (!degree || !institution || !field || !startDate) {
+      return res.status(400).json({ error: 'تمام فیلدهای ضروری را پر کنید' });
+    }
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    talent.education.push({
+      degree: degree.trim(),
+      institution: institution.trim(),
+      field: field.trim(),
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : null,
+      grade: grade?.trim(),
+      description: description?.trim(),
+      isCurrent: isCurrent || false
+    });
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'تحصیلات با موفقیت اضافه شد',
+      education: talent.education
+    });
+  } catch (error) {
+    console.error('Add education error:', error);
+    res.status(500).json({ error: 'خطا در اضافه کردن تحصیلات' });
+  }
+});
+
+// Remove education from talent profile
+router.delete('/profile/education/:index', auth, requireTalent, async (req, res) => {
+  try {
+    const index = parseInt(req.params.index);
+
+    const talent = await TalentProfile.findOne({ user: req.user._id });
+    if (!talent) {
+      return res.status(404).json({ error: 'پروفایل استعداد یافت نشد' });
+    }
+
+    if (index < 0 || index >= talent.education.length) {
+      return res.status(400).json({ error: 'شاخص تحصیلات نامعتبر است' });
+    }
+
+    talent.education.splice(index, 1);
+    await talent.save();
+
+    res.json({
+      success: true,
+      message: 'تحصیلات با موفقیت حذف شد',
+      education: talent.education
+    });
+  } catch (error) {
+    console.error('Remove education error:', error);
+    res.status(500).json({ error: 'خطا در حذف تحصیلات' });
   }
 });
 

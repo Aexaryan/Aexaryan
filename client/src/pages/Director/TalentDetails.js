@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
+import ApprovalBadge from '../../components/Common/ApprovalBadge';
+import StartConversationButton from '../../components/Messaging/StartConversationButton';
 import {
   ArrowRightIcon,
   MapPinIcon,
@@ -25,7 +27,7 @@ const TalentDetails = () => {
 
   const fetchTalentDetails = async () => {
     try {
-      const response = await axios.get(`/talents/${id}`);
+      const response = await api.get(`/talents/${id}`);
       setTalent(response.data.talent);
     } catch (error) {
       console.error('Error fetching talent details:', error);
@@ -146,9 +148,14 @@ const TalentDetails = () => {
               </div>
             )}
             
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              {talent.artisticName}
-            </h1>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {talent.artisticName}
+              </h1>
+              {talent.identificationStatus === 'approved' && (
+                <ApprovalBadge size="md" />
+              )}
+            </div>
             
             <div className="flex items-center justify-center gap-2 mb-4">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getAvailabilityColor(talent.availabilityStatus)}`}>
@@ -156,9 +163,17 @@ const TalentDetails = () => {
               </span>
             </div>
 
-            <div className="flex items-center justify-center text-sm text-gray-600">
+            <div className="flex items-center justify-center text-sm text-gray-600 mb-4">
               <EyeIcon className="w-4 h-4 ml-1" />
               {talent.profileViews || 0} بازدید پروفایل
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <StartConversationButton 
+                talent={talent}
+                className="w-full"
+              />
             </div>
           </div>
 
@@ -338,6 +353,101 @@ const TalentDetails = () => {
               </div>
             </div>
           )}
+
+          {/* Showreel Videos */}
+          {talent.showreel?.length > 0 && (
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">ویدیوهای شوریل</h2>
+              <div className="space-y-4">
+                {talent.showreel.map((video, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{video.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1">پلتفرم: {video.platform}</p>
+                        {video.description && (
+                          <p className="text-sm text-gray-600 mt-2">{video.description}</p>
+                        )}
+                        <a
+                          href={video.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm mt-2 inline-block"
+                        >
+                          مشاهده ویدیو →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Experience */}
+          {talent.experience?.length > 0 && (
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">تجربیات کاری</h2>
+              <div className="space-y-4">
+                {talent.experience.map((exp, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{exp.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {exp.company} • {exp.role}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {new Date(exp.startDate).toLocaleDateString('fa-IR')} - 
+                          {exp.isCurrent ? 'حال حاضر' : exp.endDate ? new Date(exp.endDate).toLocaleDateString('fa-IR') : ''}
+                        </p>
+                        {exp.director && (
+                          <p className="text-sm text-gray-600 mt-1">کارگردان: {exp.director}</p>
+                        )}
+                        {exp.productionCompany && (
+                          <p className="text-sm text-gray-600 mt-1">شرکت تولید: {exp.productionCompany}</p>
+                        )}
+                        {exp.description && (
+                          <p className="text-sm text-gray-600 mt-2">{exp.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education */}
+          {talent.education?.length > 0 && (
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">تحصیلات</h2>
+              <div className="space-y-4">
+                {talent.education.map((edu, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{edu.degree}</h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {edu.institution} • {edu.field}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {new Date(edu.startDate).toLocaleDateString('fa-IR')} - 
+                          {edu.isCurrent ? 'حال حاضر' : edu.endDate ? new Date(edu.endDate).toLocaleDateString('fa-IR') : ''}
+                        </p>
+                        {edu.grade && (
+                          <p className="text-sm text-gray-600 mt-1">معدل: {edu.grade}</p>
+                        )}
+                        {edu.description && (
+                          <p className="text-sm text-gray-600 mt-2">{edu.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -362,6 +472,8 @@ const TalentDetails = () => {
           </button>
         </div>
       )}
+
+
     </div>
   );
 };

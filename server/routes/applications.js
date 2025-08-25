@@ -119,19 +119,6 @@ router.get('/me', auth, requireTalent, async (req, res) => {
 
     const applications = await Application.find(filter)
       .populate('casting', 'title projectType roleType status applicationDeadline castingDirector')
-      .populate({
-        path: 'casting',
-        populate: {
-          path: 'castingDirector',
-          model: 'User',
-          select: 'email',
-          populate: {
-            path: 'castingDirector',
-            model: 'CastingDirectorProfile',
-            select: 'firstName lastName companyName'
-          }
-        }
-      })
       .sort(sortObject)
       .skip(skip)
       .limit(parseInt(limit));
@@ -160,28 +147,7 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const application = await Application.findById(req.params.id)
       .populate('casting', 'title description projectType roleType requirements applicationDeadline castingDirector')
-      .populate('talent', 'email')
-      .populate({
-        path: 'talent',
-        populate: {
-          path: 'talent',
-          model: 'TalentProfile',
-          select: 'artisticName firstName lastName dateOfBirth gender height weight eyeColor hairColor city province skills languages headshot portfolio phoneNumber'
-        }
-      })
-      .populate({
-        path: 'casting',
-        populate: {
-          path: 'castingDirector',
-          model: 'User',
-          select: 'email',
-          populate: {
-            path: 'castingDirector',
-            model: 'CastingDirectorProfile',
-            select: 'firstName lastName companyName'
-          }
-        }
-      });
+      .populate('talent', 'email');
 
     if (!application) {
       return res.status(404).json({ error: 'درخواست یافت نشد' });
@@ -250,15 +216,7 @@ router.patch('/:id/status', auth, requireCastingDirector, async (req, res) => {
       req.params.id,
       updates,
       { new: true, runValidators: true }
-    ).populate('talent', 'email')
-    .populate({
-      path: 'talent',
-      populate: {
-        path: 'talent',
-        model: 'TalentProfile',
-        select: 'artisticName firstName lastName'
-      }
-    });
+    ).populate('talent', 'email');
 
     // Update casting statistics
     if (status === 'shortlisted') {

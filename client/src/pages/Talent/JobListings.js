@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
+import ReportButton from '../../components/Common/ReportButton';
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -52,7 +53,7 @@ const JobListings = () => {
       params.append('page', page);
       params.append('limit', 12);
 
-      const response = await axios.get(`/castings?${params.toString()}`);
+      const response = await api.get(`/castings?${params.toString()}`);
       setCastings(response.data.castings || []);
       setPagination(response.data.pagination || {});
     } catch (error) {
@@ -303,6 +304,17 @@ const JobListings = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {castings.map((casting) => (
             <div key={casting._id} className="card hover:shadow-md transition-shadow">
+              {/* Photo Preview */}
+              {casting.photos && casting.photos.length > 0 && (
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 mb-4">
+                  <img
+                    src={casting.photos[0].url}
+                    alt={casting.photos[0].caption || `عکس کستینگ ${casting.title}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -386,7 +398,7 @@ const JobListings = () => {
                       {getDaysRemaining(casting.applicationDeadline)} روز باقی‌مانده
                     </span>
                   ) : (
-                    <span className="text-sm text-red-600">منقضی شده</span>
+                    <span className="text-red-600">منقضی شده</span>
                   )}
                   
                   <Link
@@ -396,6 +408,14 @@ const JobListings = () => {
                     مشاهده جزئیات
                   </Link>
                 </div>
+                
+                <ReportButton
+                  reportType="casting"
+                  targetId={casting._id}
+                  targetTitle={casting.title}
+                  variant="icon"
+                  className="text-gray-400 hover:text-red-500"
+                />
               </div>
             </div>
           ))}

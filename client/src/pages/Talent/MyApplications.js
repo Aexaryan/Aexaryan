@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import {
   DocumentTextIcon,
@@ -30,7 +30,7 @@ const MyApplications = () => {
       if (filter !== 'all') {
         params.append('status', filter);
       }
-      const response = await axios.get(`/applications/me?${params.toString()}`);
+      const response = await api.get(`/applications/me?${params.toString()}`);
       setApplications(response.data.applications || []);
     } catch (error) {
       console.error('Error fetching applications:', error);

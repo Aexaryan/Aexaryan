@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
+
+
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
@@ -13,6 +15,9 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      
+      
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 

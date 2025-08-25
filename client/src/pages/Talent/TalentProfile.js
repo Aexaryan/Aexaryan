@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import axios from 'axios';
+import IdentificationUpload from '../../components/Identification/IdentificationUpload';
+import ApprovalBadge from '../../components/Common/ApprovalBadge';
+import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import {
   CameraIcon,
@@ -13,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const TalentProfile = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, user, updateProfile } = useAuth();
   const [formData, setFormData] = useState({
     artisticName: '',
     firstName: '',
@@ -32,6 +34,15 @@ const TalentProfile = () => {
   });
   const [newSkill, setNewSkill] = useState('');
   const [newLanguage, setNewLanguage] = useState({ language: '', proficiency: 'intermediate' });
+  const [newShowreel, setNewShowreel] = useState({ title: '', url: '', platform: 'youtube', description: '' });
+  const [newExperience, setNewExperience] = useState({
+    title: '', company: '', projectType: 'film', role: '', startDate: '', endDate: '', 
+    description: '', director: '', productionCompany: '', isCurrent: false
+  });
+  const [newEducation, setNewEducation] = useState({
+    degree: '', institution: '', field: '', startDate: '', endDate: '', 
+    grade: '', description: '', isCurrent: false
+  });
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [uploadingHeadshot, setUploadingHeadshot] = useState(false);
@@ -72,7 +83,7 @@ const TalentProfile = () => {
     setUpdating(true);
 
     try {
-      const response = await axios.put('/talents/profile', formData);
+      const response = await api.put('/talents/profile', formData);
       updateProfile(response.data.talent);
       toast.success('پروفایل با موفقیت به‌روزرسانی شد');
     } catch (error) {
@@ -97,7 +108,7 @@ const TalentProfile = () => {
     formData.append('headshot', file);
 
     try {
-      const response = await axios.post('/upload/headshot', formData, {
+      const response = await api.post('/upload/headshot', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -127,7 +138,7 @@ const TalentProfile = () => {
     files.forEach(file => formData.append('images', file));
 
     try {
-      const response = await axios.post('/upload/portfolio', formData, {
+      const response = await api.post('/upload/portfolio', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -145,10 +156,10 @@ const TalentProfile = () => {
   };
 
   const handleDeletePortfolioImage = async (imageId) => {
-    if (!confirm('آیا از حذف این عکس مطمئن هستید؟')) return;
+    if (!window.confirm('آیا از حذف این عکس مطمئن هستید؟')) return;
 
     try {
-      await axios.delete(`/upload/portfolio/${imageId}`);
+      await api.delete(`/upload/portfolio/${imageId}`);
       
       // Update profile by removing the deleted image
       const updatedPortfolio = profile.portfolio.filter(img => img._id !== imageId);
@@ -165,7 +176,7 @@ const TalentProfile = () => {
     if (!newSkill.trim()) return;
 
     try {
-      const response = await axios.post('/talents/profile/skills', { skill: newSkill.trim() });
+      const response = await api.post('/talents/profile/skills', { skill: newSkill.trim() });
       const updatedProfile = { ...profile, skills: response.data.skills };
       updateProfile(updatedProfile);
       setNewSkill('');
@@ -178,7 +189,7 @@ const TalentProfile = () => {
 
   const handleRemoveSkill = async (skill) => {
     try {
-      const response = await axios.delete(`/talents/profile/skills/${encodeURIComponent(skill)}`);
+      const response = await api.delete(`/talents/profile/skills/${encodeURIComponent(skill)}`);
       const updatedProfile = { ...profile, skills: response.data.skills };
       updateProfile(updatedProfile);
       toast.success('مهارت حذف شد');
@@ -192,7 +203,7 @@ const TalentProfile = () => {
     if (!newLanguage.language.trim()) return;
 
     try {
-      const response = await axios.post('/talents/profile/languages', newLanguage);
+      const response = await api.post('/talents/profile/languages', newLanguage);
       const updatedProfile = { ...profile, languages: response.data.languages };
       updateProfile(updatedProfile);
       setNewLanguage({ language: '', proficiency: 'intermediate' });
@@ -200,6 +211,107 @@ const TalentProfile = () => {
     } catch (error) {
       console.error('Add language error:', error);
       toast.error(error.response?.data?.error || 'خطا در اضافه کردن زبان');
+    }
+  };
+
+  // Showreel handlers
+  const handleAddShowreel = async () => {
+    if (!newShowreel.title.trim() || !newShowreel.url.trim()) {
+      toast.error('عنوان و لینک ویدیو ضروری است');
+      return;
+    }
+
+    try {
+      const response = await api.post('/talents/profile/showreel', newShowreel);
+      const updatedProfile = { ...profile, showreel: response.data.showreel };
+      updateProfile(updatedProfile);
+      setNewShowreel({ title: '', url: '', platform: 'youtube', description: '' });
+      toast.success('ویدیو شوریل اضافه شد');
+    } catch (error) {
+      console.error('Add showreel error:', error);
+      toast.error(error.response?.data?.error || 'خطا در اضافه کردن ویدیو شوریل');
+    }
+  };
+
+  const handleRemoveShowreel = async (index) => {
+    try {
+      const response = await api.delete(`/talents/profile/showreel/${index}`);
+      const updatedProfile = { ...profile, showreel: response.data.showreel };
+      updateProfile(updatedProfile);
+      toast.success('ویدیو شوریل حذف شد');
+    } catch (error) {
+      console.error('Remove showreel error:', error);
+      toast.error(error.response?.data?.error || 'خطا در حذف ویدیو شوریل');
+    }
+  };
+
+  // Experience handlers
+  const handleAddExperience = async () => {
+    if (!newExperience.title.trim() || !newExperience.company.trim() || 
+        !newExperience.role.trim() || !newExperience.startDate) {
+      toast.error('تمام فیلدهای ضروری را پر کنید');
+      return;
+    }
+
+    try {
+      const response = await api.post('/talents/profile/experience', newExperience);
+      const updatedProfile = { ...profile, experience: response.data.experience };
+      updateProfile(updatedProfile);
+      setNewExperience({
+        title: '', company: '', projectType: 'film', role: '', startDate: '', endDate: '', 
+        description: '', director: '', productionCompany: '', isCurrent: false
+      });
+      toast.success('تجربه اضافه شد');
+    } catch (error) {
+      console.error('Add experience error:', error);
+      toast.error(error.response?.data?.error || 'خطا در اضافه کردن تجربه');
+    }
+  };
+
+  const handleRemoveExperience = async (index) => {
+    try {
+      const response = await api.delete(`/talents/profile/experience/${index}`);
+      const updatedProfile = { ...profile, experience: response.data.experience };
+      updateProfile(updatedProfile);
+      toast.success('تجربه حذف شد');
+    } catch (error) {
+      console.error('Remove experience error:', error);
+      toast.error(error.response?.data?.error || 'خطا در حذف تجربه');
+    }
+  };
+
+  // Education handlers
+  const handleAddEducation = async () => {
+    if (!newEducation.degree.trim() || !newEducation.institution.trim() || 
+        !newEducation.field.trim() || !newEducation.startDate) {
+      toast.error('تمام فیلدهای ضروری را پر کنید');
+      return;
+    }
+
+    try {
+      const response = await api.post('/talents/profile/education', newEducation);
+      const updatedProfile = { ...profile, education: response.data.education };
+      updateProfile(updatedProfile);
+      setNewEducation({
+        degree: '', institution: '', field: '', startDate: '', endDate: '', 
+        grade: '', description: '', isCurrent: false
+      });
+      toast.success('تحصیلات اضافه شد');
+    } catch (error) {
+      console.error('Add education error:', error);
+      toast.error(error.response?.data?.error || 'خطا در اضافه کردن تحصیلات');
+    }
+  };
+
+  const handleRemoveEducation = async (index) => {
+    try {
+      const response = await api.delete(`/talents/profile/education/${index}`);
+      const updatedProfile = { ...profile, education: response.data.education };
+      updateProfile(updatedProfile);
+      toast.success('تحصیلات حذف شد');
+    } catch (error) {
+      console.error('Remove education error:', error);
+      toast.error(error.response?.data?.error || 'خطا در حذف تحصیلات');
     }
   };
 
@@ -298,7 +410,7 @@ const TalentProfile = () => {
                     />
                     <button
                       onClick={() => handleDeletePortfolioImage(image._id)}
-                      className="absolute top-1 left-1 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 left-1 bg-secondary-200 hover:bg-secondary-300 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <TrashIcon className="w-3 h-3" />
                     </button>
@@ -312,6 +424,9 @@ const TalentProfile = () => {
               </div>
             )}
           </div>
+
+          {/* Identification Upload */}
+          <IdentificationUpload />
         </div>
 
         {/* Profile Form */}
@@ -321,9 +436,14 @@ const TalentProfile = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  نام هنری *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    نام هنری *
+                  </label>
+                  {user?.identificationStatus === 'approved' && (
+                    <ApprovalBadge size="sm" />
+                  )}
+                </div>
                 <input
                   type="text"
                   name="artisticName"
@@ -649,6 +769,352 @@ const TalentProfile = () => {
               </div>
             ) : (
               <p className="text-gray-500 text-sm">هنوز زبانی اضافه نکرده‌اید</p>
+            )}
+          </div>
+
+          {/* Showreel Videos */}
+          <div className="card">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">ویدیوهای شوریل</h3>
+            
+            <div className="space-y-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newShowreel.title}
+                  onChange={(e) => setNewShowreel(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="عنوان ویدیو..."
+                  className="input-field"
+                />
+                <select
+                  value={newShowreel.platform}
+                  onChange={(e) => setNewShowreel(prev => ({ ...prev, platform: e.target.value }))}
+                  className="input-field"
+                >
+                  <option value="youtube">یوتیوب</option>
+                  <option value="vimeo">ویمو</option>
+                  <option value="instagram">اینستاگرام</option>
+                  <option value="tiktok">تیک‌تاک</option>
+                  <option value="other">سایر</option>
+                </select>
+              </div>
+              <input
+                type="url"
+                value={newShowreel.url}
+                onChange={(e) => setNewShowreel(prev => ({ ...prev, url: e.target.value }))}
+                placeholder="لینک ویدیو..."
+                className="input-field"
+              />
+              <textarea
+                value={newShowreel.description}
+                onChange={(e) => setNewShowreel(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="توضیحات (اختیاری)..."
+                rows={3}
+                className="input-field"
+              />
+              <button
+                type="button"
+                onClick={handleAddShowreel}
+                className="btn-outline w-full"
+              >
+                <PlusIcon className="w-4 h-4 ml-2" />
+                افزودن ویدیو شوریل
+              </button>
+            </div>
+
+            {profile?.showreel && profile.showreel.length > 0 ? (
+              <div className="space-y-3">
+                {profile.showreel.map((video, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{video.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{video.platform}</p>
+                        {video.description && (
+                          <p className="text-sm text-gray-600 mt-2">{video.description}</p>
+                        )}
+                        <a
+                          href={video.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-600 hover:text-primary-700 text-sm mt-2 inline-block"
+                        >
+                          مشاهده ویدیو
+                        </a>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveShowreel(index)}
+                        className="bg-secondary-200 hover:bg-secondary-300 text-white p-1 rounded mr-3 transition-colors duration-200"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">هنوز ویدیو شوریلی اضافه نکرده‌اید</p>
+            )}
+          </div>
+
+          {/* Experience */}
+          <div className="card">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">تجربیات کاری</h3>
+            
+            <div className="space-y-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newExperience.title}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="عنوان پروژه..."
+                  className="input-field"
+                />
+                <input
+                  type="text"
+                  value={newExperience.company}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, company: e.target.value }))}
+                  placeholder="شرکت/استودیو..."
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={newExperience.projectType}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, projectType: e.target.value }))}
+                  className="input-field"
+                >
+                  <option value="film">فیلم</option>
+                  <option value="tv_series">سریال تلویزیونی</option>
+                  <option value="commercial">تبلیغات</option>
+                  <option value="theater">تئاتر</option>
+                  <option value="music_video">موزیک ویدیو</option>
+                  <option value="documentary">مستند</option>
+                  <option value="web_series">وب سریال</option>
+                  <option value="other">سایر</option>
+                </select>
+                <input
+                  type="text"
+                  value={newExperience.role}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, role: e.target.value }))}
+                  placeholder="نقش..."
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="date"
+                  value={newExperience.startDate}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="input-field"
+                />
+                <input
+                  type="date"
+                  value={newExperience.endDate}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="input-field"
+                  disabled={newExperience.isCurrent}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isCurrentExperience"
+                  checked={newExperience.isCurrent}
+                  onChange={(e) => setNewExperience(prev => ({ 
+                    ...prev, 
+                    isCurrent: e.target.checked,
+                    endDate: e.target.checked ? '' : prev.endDate
+                  }))}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="isCurrentExperience" className="text-sm text-gray-700">
+                  در حال حاضر مشغول به کار
+                </label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newExperience.director}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, director: e.target.value }))}
+                  placeholder="کارگردان (اختیاری)..."
+                  className="input-field"
+                />
+                <input
+                  type="text"
+                  value={newExperience.productionCompany}
+                  onChange={(e) => setNewExperience(prev => ({ ...prev, productionCompany: e.target.value }))}
+                  placeholder="شرکت تولید (اختیاری)..."
+                  className="input-field"
+                />
+              </div>
+              <textarea
+                value={newExperience.description}
+                onChange={(e) => setNewExperience(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="توضیحات (اختیاری)..."
+                rows={3}
+                className="input-field"
+              />
+              <button
+                type="button"
+                onClick={handleAddExperience}
+                className="btn-outline w-full"
+              >
+                <PlusIcon className="w-4 h-4 ml-2" />
+                افزودن تجربه
+              </button>
+            </div>
+
+            {profile?.experience && profile.experience.length > 0 ? (
+              <div className="space-y-4">
+                {profile.experience.map((exp, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{exp.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {exp.company} • {exp.role}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {new Date(exp.startDate).toLocaleDateString('fa-IR')} - 
+                          {exp.isCurrent ? 'حال حاضر' : exp.endDate ? new Date(exp.endDate).toLocaleDateString('fa-IR') : ''}
+                        </p>
+                        {exp.description && (
+                          <p className="text-sm text-gray-600 mt-2">{exp.description}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveExperience(index)}
+                        className="bg-secondary-200 hover:bg-secondary-300 text-white p-1 rounded mr-3 transition-colors duration-200"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">هنوز تجربه‌ای اضافه نکرده‌اید</p>
+            )}
+          </div>
+
+          {/* Education */}
+          <div className="card">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">تحصیلات</h3>
+            
+            <div className="space-y-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newEducation.degree}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, degree: e.target.value }))}
+                  placeholder="مدرک تحصیلی..."
+                  className="input-field"
+                />
+                <input
+                  type="text"
+                  value={newEducation.institution}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, institution: e.target.value }))}
+                  placeholder="موسسه آموزشی..."
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  value={newEducation.field}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, field: e.target.value }))}
+                  placeholder="رشته تحصیلی..."
+                  className="input-field"
+                />
+                <input
+                  type="text"
+                  value={newEducation.grade}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, grade: e.target.value }))}
+                  placeholder="معدل (اختیاری)..."
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="date"
+                  value={newEducation.startDate}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="input-field"
+                />
+                <input
+                  type="date"
+                  value={newEducation.endDate}
+                  onChange={(e) => setNewEducation(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="input-field"
+                  disabled={newEducation.isCurrent}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isCurrentEducation"
+                  checked={newEducation.isCurrent}
+                  onChange={(e) => setNewEducation(prev => ({ 
+                    ...prev, 
+                    isCurrent: e.target.checked,
+                    endDate: e.target.checked ? '' : prev.endDate
+                  }))}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label htmlFor="isCurrentEducation" className="text-sm text-gray-700">
+                  در حال تحصیل
+                </label>
+              </div>
+              <textarea
+                value={newEducation.description}
+                onChange={(e) => setNewEducation(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="توضیحات (اختیاری)..."
+                rows={3}
+                className="input-field"
+              />
+              <button
+                type="button"
+                onClick={handleAddEducation}
+                className="btn-outline w-full"
+              >
+                <PlusIcon className="w-4 h-4 ml-2" />
+                افزودن تحصیلات
+              </button>
+            </div>
+
+            {profile?.education && profile.education.length > 0 ? (
+              <div className="space-y-4">
+                {profile.education.map((edu, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{edu.degree}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {edu.institution} • {edu.field}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {new Date(edu.startDate).toLocaleDateString('fa-IR')} - 
+                          {edu.isCurrent ? 'حال حاضر' : edu.endDate ? new Date(edu.endDate).toLocaleDateString('fa-IR') : ''}
+                        </p>
+                        {edu.grade && (
+                          <p className="text-sm text-gray-600 mt-1">معدل: {edu.grade}</p>
+                        )}
+                        {edu.description && (
+                          <p className="text-sm text-gray-600 mt-2">{edu.description}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveEducation(index)}
+                        className="bg-secondary-200 hover:bg-secondary-300 text-white p-1 rounded mr-3 transition-colors duration-200"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">هنوز تحصیلاتی اضافه نکرده‌اید</p>
             )}
           </div>
         </div>

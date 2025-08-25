@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import axios from 'axios';
+import IdentificationUpload from '../../components/Identification/IdentificationUpload';
+import ApprovalBadge from '../../components/Common/ApprovalBadge';
+import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import {
   CameraIcon,
@@ -12,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const DirectorProfile = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, user, updateProfile } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -64,13 +66,12 @@ const DirectorProfile = () => {
 
     try {
       const updateData = { ...formData, specialties };
-      // Since we don't have a specific director profile update endpoint, 
-      // we'll simulate the update
-      updateProfile({ ...profile, ...updateData });
+      const response = await api.put('/castings/profile', updateData);
+      updateProfile(response.data.profile);
       toast.success('پروفایل با موفقیت به‌روزرسانی شد');
     } catch (error) {
       console.error('Profile update error:', error);
-      toast.error('خطا در به‌روزرسانی پروفایل');
+      toast.error(error.response?.data?.error || 'خطا در به‌روزرسانی پروفایل');
     } finally {
       setUpdating(false);
     }
@@ -90,7 +91,7 @@ const DirectorProfile = () => {
     formData.append('image', file);
 
     try {
-      const response = await axios.post('/upload/profile-image', formData, {
+      const response = await api.post('/upload/profile-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
@@ -217,6 +218,9 @@ const DirectorProfile = () => {
               </p>
             )}
           </div>
+
+          {/* Identification Upload */}
+          <IdentificationUpload />
         </div>
 
         {/* Profile Form */}
@@ -226,9 +230,14 @@ const DirectorProfile = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  نام *
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    نام *
+                  </label>
+                  {user?.identificationStatus === 'approved' && (
+                    <ApprovalBadge size="sm" />
+                  )}
+                </div>
                 <input
                   type="text"
                   name="firstName"
@@ -427,7 +436,7 @@ const DirectorProfile = () => {
                     {getSpecialtyText(specialty)}
                     <button
                       onClick={() => removeSpecialty(specialty)}
-                      className="mr-2 text-primary-600 hover:text-primary-800"
+                      className="mr-2 bg-secondary-200 hover:bg-secondary-300 text-white p-1 rounded transition-colors duration-200"
                     >
                       <XMarkIcon className="w-3 h-3" />
                     </button>
