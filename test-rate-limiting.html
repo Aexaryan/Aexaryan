@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limiting Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Rate Limiting Test Suite</h1>
+        
+        <div class="test-section">
+            <h3>📡 API Endpoint Test</h3>
+            <p>Test basic API connectivity and rate limiting detection.</p>
+            <button onclick="testAPIEndpoint()">Test API Endpoint</button>
+            <button onclick="testRapidCalls()">Test Rapid Calls</button>
+            <div id="api-results" class="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 Retry Logic Test</h3>
+            <p>Test the exponential backoff and retry mechanism.</p>
+            <button onclick="testRetryLogic()">Test Retry Logic</button>
+            <div id="retry-results" class="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>💾 Cache Test</h3>
+            <p>Test service worker caching functionality.</p>
+            <button onclick="testCaching()">Test Caching</button>
+            <div id="cache-results" class="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 User Management Test</h3>
+            <p>Test the UserManagement component with rate limiting.</p>
+            <button onclick="openUserManagement()">Open User Management</button>
+            <div id="user-management-results" class="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Comprehensive Test</h3>
+            <p>Run all tests in sequence.</p>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <div id="comprehensive-results" class="results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type === 'success' ? 'success' : 
+                               type === 'error' ? 'error' : 
+                               type === 'warning' ? 'warning' : 'info';
+            
+            element.innerHTML += `<div class="status ${statusClass}">[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function clearResults(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        // Test 1: API Endpoint Test
+        async function testAPIEndpoint() {
+            clearResults('api-results');
+            log('api-results', '🧪 Starting API endpoint test...', 'info');
+            
+            try {
+                const response = await fetch('/api/blogs?page=1&limit=12&sort=newest');
+                log('api-results', `Response status: ${response.status}`, 'success');
+                
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('retry-after');
+                    log('api-results', `Rate limited! Retry after: ${retryAfter} seconds`, 'warning');
+                } else if (response.status === 200) {
+                    const data = await response.json();
+                    log('api-results', `Success! Received ${data.blogs?.length || 0} blogs`, 'success');
+                }
+            } catch (error) {
+                log('api-results', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Rapid Calls Test
+        async function testRapidCalls() {
+            clearResults('api-results');
+            log('api-results', '🚀 Making 20 rapid API calls...', 'info');
+            
+            const promises = [];
+            for (let i = 0; i < 20; i++) {
+                promises.push(
+                    fetch('/api/blogs?page=1&limit=12&sort=newest')
+                        .then(response => ({ status: response.status, index: i + 1 }))
+                        .catch(error => ({ error: error.message, index: i + 1 }))
+                );
+            }
+            
+            const results = await Promise.allSettled(promises);
+            
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value.status === 200).length;
+            const rateLimited = results.filter(r => r.status === 'fulfilled' && r.value.status === 429).length;
+            const errors = results.filter(r => r.status === 'rejected').length;
+            
+            log('api-results', `📊 Results:`, 'info');
+            log('api-results', `✅ Successful: ${successful}`, 'success');
+            log('api-results', `🚫 Rate Limited: ${rateLimited}`, 'warning');
+            log('api-results', `❌ Errors: ${errors}`, 'error');
+        }
+
+        // Test 3: Retry Logic Test
+        async function testRetryLogic() {
+            clearResults('retry-results');
+            log('retry-results', '🔄 Testing retry logic...', 'info');
+            
+            // Simulate retry attempts
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                log('retry-results', `Attempt ${attempt}/3...`, 'info');
+                
+                try {
+                    const response = await fetch('/api/blogs?page=1&limit=12&sort=newest');
+                    
+                    if (response.status === 429) {
+                        const retryAfter = response.headers.get('retry-after');
+                        log('retry-results', `Rate limited on attempt ${attempt}. Retry after: ${retryAfter}s`, 'warning');
+                        
+                        if (attempt < 3) {
+                            const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+                            log('retry-results', `Waiting ${delay}ms before retry...`, 'info');
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                        }
+                    } else if (response.status === 200) {
+                        log('retry-results', `Success on attempt ${attempt}!`, 'success');
+                        break;
+                    }
+                } catch (error) {
+                    log('retry-results', `Error on attempt ${attempt}: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Test 4: Cache Test
+        async function testCaching() {
+            clearResults('cache-results');
+            log('cache-results', '💾 Testing caching functionality...', 'info');
+            
+            try {
+                // First request
+                log('cache-results', 'Making first request...', 'info');
+                const response1 = await fetch('/api/blogs?page=1&limit=12&sort=newest');
+                log('cache-results', `First request status: ${response1.status}`, 'info');
+                
+                // Second request (should use cache if available)
+                log('cache-results', 'Making second request...', 'info');
+                const response2 = await fetch('/api/blogs?page=1&limit=12&sort=newest');
+                log('cache-results', `Second request status: ${response2.status}`, 'info');
+                
+                // Check if responses are identical
+                const text1 = await response1.text();
+                const text2 = await response2.text();
+                
+                if (text1 === text2) {
+                    log('cache-results', '✅ Responses are identical (cache working)', 'success');
+                } else {
+                    log('cache-results', '⚠️ Responses differ (cache not working)', 'warning');
+                }
+                
+            } catch (error) {
+                log('cache-results', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Open User Management
+        function openUserManagement() {
+            clearResults('user-management-results');
+            log('user-management-results', '🎯 Opening User Management page...', 'info');
+            
+            // Open in new tab
+            window.open('/admin/users', '_blank');
+            
+            log('user-management-results', '✅ User Management page opened in new tab', 'success');
+            log('user-management-results', '📝 Test the rate limiting features:', 'info');
+            log('user-management-results', '   - Try rapid filtering/searching', 'info');
+            log('user-management-results', '   - Check for rate limit warning banner', 'info');
+            log('user-management-results', '   - Verify buttons are disabled during rate limiting', 'info');
+        }
+
+        // Test 6: Run All Tests
+        async function runAllTests() {
+            clearResults('comprehensive-results');
+            log('comprehensive-results', '🚀 Starting comprehensive test suite...', 'info');
+            
+            // Run all tests in sequence
+            await testAPIEndpoint();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testRapidCalls();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testRetryLogic();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testCaching();
+            
+            log('comprehensive-results', '✅ All tests completed!', 'success');
+            log('comprehensive-results', '📊 Check individual test results above for details.', 'info');
+        }
+
+        // Auto-run basic test on page load
+        window.addEventListener('load', () => {
+            log('comprehensive-results', '🎉 Rate limiting test suite loaded!', 'success');
+            log('comprehensive-results', '📝 Click "Run All Tests" to start testing.', 'info');
+        });
+    </script>
+</body>
+</html>

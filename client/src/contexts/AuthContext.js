@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -12,30 +12,40 @@ export const useAuth = () => {
   return context;
 };
 
-// Configure axios defaults
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Configure api defaults
+api.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [csrfToken, setCsrfToken] = useState(null);
 
-  // Set axios auth header
+  // Set api auth header
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete api.defaults.headers.common['Authorization'];
     }
   }, [token]);
 
-  // Check authentication status on mount
-  useEffect(() => {
-    checkAuth();
+  // Fetch CSRF token
+  const fetchCSRFToken = useCallback(async () => {
+    try {
+      const response = await api.get('/auth/csrf-token');
+      setCsrfToken(response.data.csrfToken);
+      // Set CSRF token in api defaults
+      api.defaults.headers.common['X-CSRF-Token'] = response.data.csrfToken;
+      // Store in localStorage for persistence
+      localStorage.setItem('csrfToken', response.data.csrfToken);
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+    }
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     const savedToken = localStorage.getItem('token');
     if (!savedToken) {
       setLoading(false);
@@ -43,41 +53,80 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-      const response = await axios.get('/auth/me');
+      api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+      const response = await api.get('/auth/me');
       
-      setUser(response.data.user);
+      let userData = response.data.user;
       setProfile(response.data.profile);
       setToken(savedToken);
+
+      // If user is a writer, fetch their profile image
+      let updatedUserData = userData;
+      if (userData.role === 'journalist') {
+        try {
+          const writerProfileResponse = await api.get('/writer/profile');
+          if (writerProfileResponse.data.profileImage) {
+            updatedUserData = { ...userData, profileImage: writerProfileResponse.data.profileImage };
+          }
+        } catch (profileError) {
+          console.error('Failed to fetch writer profile:', profileError);
+        }
+      }
+
+      setUser(updatedUserData);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
+      delete api.defaults.headers.common['Authorization'];
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Check authentication status on mount
+  useEffect(() => {
+    checkAuth();
+    fetchCSRFToken();
+  }, [checkAuth, fetchCSRFToken]);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/auth/login', { email, password });
+      // Ensure CSRF token is available
+      if (!csrfToken) {
+        await fetchCSRFToken();
+      }
+      
+      const response = await api.post('/auth/login', { email, password });
       
       const { token: newToken, user: userData } = response.data;
       
       localStorage.setItem('token', newToken);
       setToken(newToken);
-      setUser(userData);
       
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
       // Fetch profile after login
+      let updatedUserData = userData;
       try {
-        const profileResponse = await axios.get('/auth/me');
+        const profileResponse = await api.get('/auth/me');
         setProfile(profileResponse.data.profile);
+        
+        // If user is a writer, fetch their profile image
+        if (userData.role === 'journalist') {
+          try {
+            const writerProfileResponse = await api.get('/writer/profile');
+            if (writerProfileResponse.data.profileImage) {
+              updatedUserData = { ...userData, profileImage: writerProfileResponse.data.profileImage };
+            }
+          } catch (profileError) {
+            console.error('Failed to fetch writer profile:', profileError);
+          }
+        }
       } catch (profileError) {
         console.error('Failed to fetch profile:', profileError);
       }
       
+      setUser(updatedUserData);
       toast.success('ورود موفقیت‌آمیز بود');
       return { success: true };
     } catch (error) {
@@ -89,7 +138,12 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/auth/register', userData);
+      // Ensure CSRF token is available
+      if (!csrfToken) {
+        await fetchCSRFToken();
+      }
+      
+      const response = await api.post('/auth/register', userData);
       
       const { token: newToken, user: newUser } = response.data;
       
@@ -97,11 +151,11 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser(newUser);
       
-      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
       // Fetch profile after registration
       try {
-        const profileResponse = await axios.get('/auth/me');
+        const profileResponse = await api.get('/auth/me');
         setProfile(profileResponse.data.profile);
       } catch (profileError) {
         console.error('Failed to fetch profile:', profileError);
@@ -118,7 +172,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post('/auth/logout');
+      await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -126,7 +180,7 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setUser(null);
       setProfile(null);
-      delete axios.defaults.headers.common['Authorization'];
+      delete api.defaults.headers.common['Authorization'];
       toast.success('خروج موفقیت‌آمیز بود');
     }
   };
@@ -139,15 +193,25 @@ export const AuthProvider = ({ children }) => {
     setUser(newUser);
   };
 
+  const updateUserProfileImage = (profileImageUrl) => {
+    if (user) {
+      setUser({ ...user, profileImage: profileImageUrl });
+    }
+  };
+
   const value = {
     user,
     profile,
     loading,
+    token,
     login,
     register,
     logout,
     updateProfile,
     updateUser,
+    updateUserProfileImage,
+    csrfToken,
+    fetchCSRFToken,
     isAuthenticated: !!user,
     isTalent: user?.role === 'talent',
     isCastingDirector: user?.role === 'casting_director'

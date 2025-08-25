@@ -1,39 +1,121 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
-const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+const { trackAnalytics, trackPerformance, trackGeographicData, trackDeviceInfo } = require('./middleware/analytics');
+
+// Import security middleware
+const {
+  sanitizeInput,
+  rateLimiters,
+  speedLimiter,
+  helmetConfig,
+  limitRequestSize,
+  securityHeaders,
+  securityLogging,
+  mongoSanitize,
+  hpp
+} = require('./middleware/security');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: '../.env' });
 
 const app = express();
 
-// Middleware
-app.use(helmet());
+// Security middleware - Optimized for development
+app.use(helmetConfig);
+app.use(securityHeaders);
+
+// Skip heavy security features in development for better performance
+if (process.env.NODE_ENV !== 'development') {
+  app.use(securityLogging);
+  app.use(limitRequestSize);
+  app.use(sanitizeInput);
+  app.use(mongoSanitize());
+  app.use(hpp());
+} else {
+  // Lightweight security for development
+  app.use(sanitizeInput);
+  app.use(mongoSanitize());
+}
+
+// CORS configuration
 app.use(cors({
   origin: process.env.CLIENT_URL || "http://localhost:3000",
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 }));
+
+// Logging
 app.use(morgan('combined'));
+
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// Session middleware for analytics
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/talents', require('./routes/talents'));
-app.use('/api/castings', require('./routes/castings'));
-app.use('/api/applications', require('./routes/applications'));
-app.use('/api/upload', require('./routes/upload'));
+// Analytics tracking middleware - TEMPORARILY DISABLED due to timeout issues
+// app.use(trackAnalytics);
+// app.use(trackPerformance);
+// app.use(trackGeographicData);
+// app.use(trackDeviceInfo);
+
+// Serve static files from uploads directory (if needed for other uploads)
+app.use('/uploads', express.static('uploads'));
+
+// Rate limiting and speed limiting - Optimized for development
+if (process.env.NODE_ENV === 'development') {
+  // More lenient rate limiting for development
+  app.use(rateLimiters.general);
+} else {
+  // Full rate limiting for production
+  app.use(rateLimiters.general);
+  app.use(speedLimiter);
+}
+
+// Routes with security middleware - Optimized for development
+if (process.env.NODE_ENV === 'development') {
+  // Reduced rate limiting for development
+  app.use('/api/auth', require('./routes/auth'));
+  app.use('/api/talents', require('./routes/talents'));
+  app.use('/api/castings', require('./routes/castings'));
+  app.use('/api/applications', require('./routes/applications'));
+  app.use('/api/upload', require('./routes/upload'));
+  app.use('/api/messages', require('./routes/messages'));
+  app.use('/api/admin', require('./routes/admin'));
+  app.use('/api/identification', require('./routes/identification'));
+  app.use('/api/reports', require('./routes/reports'));
+  app.use('/api/blogs', require('./routes/blogs'));
+  app.use('/api/news', require('./routes/news'));
+  app.use('/api/writer', require('./routes/writer'));
+} else {
+  // Full rate limiting for production
+  app.use('/api/auth', rateLimiters.auth, require('./routes/auth'));
+  app.use('/api/talents', require('./routes/talents'));
+  app.use('/api/castings', require('./routes/castings'));
+  app.use('/api/applications', require('./routes/applications'));
+  app.use('/api/upload', rateLimiters.upload, require('./routes/upload'));
+  app.use('/api/messages', require('./routes/messages'));
+  app.use('/api/admin', require('./routes/admin'));
+  app.use('/api/identification', require('./routes/identification'));
+  app.use('/api/reports', require('./routes/reports'));
+  app.use('/api/blogs', require('./routes/blogs'));
+  app.use('/api/news', require('./routes/news'));
+  app.use('/api/writer', require('./routes/writer'));
+}
 
 // MongoDB connection
 const connectDB = async () => {
@@ -69,7 +151,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'مسیر مورد نظر یافت نشد' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Start server
 connectDB().then(() => {
@@ -79,4 +161,4 @@ connectDB().then(() => {
   });
 });
 
-module.exports = app;
+module.exports = { app };

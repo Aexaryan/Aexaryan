@@ -14,7 +14,8 @@ body {
   font-family: 'Vazir', 'Tahoma', 'Arial', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
+  background-color: #ffffff;
+  color: #000000;
 }
 
 /* Custom scrollbar */
@@ -23,53 +24,122 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #ffffff;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #af3131;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #af3131;
 }
 
-/* Custom components */
+/* RTL Dropdown Spacing - Global fix for dropdown arrows blending with Persian text */
 @layer components {
+  /* Select elements with dropdown arrows */
+  select {
+    @apply pr-8; /* Add right padding for dropdown arrow */
+    background-position: left 0.5rem center !important;
+    background-repeat: no-repeat !important;
+    background-size: 1rem !important;
+  }
+  
+  /* Custom select styling for better RTL support */
+  .select-rtl {
+    @apply pr-8 pl-3;
+    background-position: left 0.5rem center !important;
+    background-repeat: no-repeat !important;
+    background-size: 1rem !important;
+  }
+  
+  /* Dropdown components with custom arrows */
+  .dropdown-rtl {
+    @apply pr-8;
+  }
+  
+  /* Specific spacing for different dropdown types */
+  .dropdown-select {
+    @apply pr-8 pl-3;
+  }
+  
+  .dropdown-menu {
+    @apply pr-8 pl-3;
+  }
+  
+  /* Fix for native select elements */
+  select:not([multiple]) {
+    @apply pr-8 pl-3;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: left 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem;
+  }
+  
+  /* Custom components */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-accent-600 hover:bg-accent-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    @apply bg-secondary-200 hover:bg-secondary-300 text-white font-medium py-2 px-4 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2;
+  }
+  
+  .btn-success {
+    @apply bg-accent-600 hover:bg-accent-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2;
   }
   
   .btn-outline {
-    @apply border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply border-2 border-accent-600 text-accent-600 hover:bg-accent-600 hover:text-white font-bold py-2 px-4 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2;
+  }
+  
+  .btn-sm {
+    @apply text-sm py-1.5 px-3;
   }
   
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+    @apply w-full px-3 py-2 border border-secondary-300 rounded focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-colors duration-200 bg-white text-black;
+  }
+  
+  .input-field-select {
+    @apply w-full pr-8 pl-3 py-2 border border-secondary-300 rounded focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-colors duration-200 bg-white text-black;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23bfa008' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: left 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem;
+  }
+  
+  .checkbox {
+    @apply w-4 h-4 text-accent-600 border-secondary-300 rounded focus:ring-accent-500 focus:ring-2;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded shadow border border-secondary-200 p-6;
   }
   
   .sidebar-item {
-    @apply flex items-center px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-lg transition-colors duration-200 cursor-pointer;
+    @apply flex items-center px-4 py-2 text-black hover:bg-secondary-200 hover:text-white rounded transition-colors duration-200 cursor-pointer border-r-2 border-transparent;
   }
   
   .sidebar-item.active {
-    @apply bg-primary-100 text-primary-800 font-medium;
+    @apply bg-secondary-200 text-white font-bold border-r-2 border-accent-600;
+  }
+  
+  .sidebar-item.has-notification {
+    @apply relative;
+  }
+  
+  .sidebar-item.has-notification:before {
+    content: '';
+    @apply absolute left-2 top-2 w-2 h-2 bg-accent-600 rounded-full animate-pulse;
   }
 }
 
 /* Loading spinner */
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #f59e0b;
+  border: 4px solid #92908b;
+  border-top: 4px solid #af3131;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -83,60 +153,63 @@ body {
 
 /* Toast notifications */
 .toast-success {
-  background-color: #10b981;
-  color: white;
+  background-color: #af3131;
+  color: #ffffff;
+  border: 2px solid #92908b;
 }
 
 .toast-error {
-  background-color: #ef4444;
-  color: white;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #af3131;
 }
 
 .toast-warning {
-  background-color: #f59e0b;
-  color: white;
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #af3131;
 }
 
 /* Form validation */
 .form-error {
-  @apply text-red-600 text-sm mt-1;
+  @apply text-white bg-secondary-200 px-2 py-1 rounded text-sm mt-1;
 }
 
 .input-error {
-  @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+  @apply border-accent-600 focus:ring-accent-600 focus:border-accent-600;
 }
 
 /* Status badges */
-.status-pending {
-  @apply bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium;
-}
+  .status-pending {
+    @apply bg-accent-600 text-white px-2 py-1 rounded text-xs font-bold border border-accent-600;
+  }
 
 .status-reviewed {
-  @apply bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium;
+  @apply bg-secondary-200 text-white px-2 py-1 rounded text-xs font-medium border border-accent-600;
 }
 
 .status-shortlisted {
-  @apply bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium;
+  @apply bg-secondary-200 text-white px-2 py-1 rounded text-xs font-medium border border-accent-600;
 }
 
-.status-accepted {
-  @apply bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium;
-}
+  .status-accepted {
+    @apply bg-accent-600 text-white px-2 py-1 rounded text-xs font-bold border border-accent-600;
+  }
 
 .status-rejected {
-  @apply bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium;
+  @apply bg-white text-black px-2 py-1 rounded text-xs font-medium border border-accent-600;
 }
 
-.status-active {
-  @apply bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium;
-}
+  .status-active {
+    @apply bg-accent-600 text-white px-2 py-1 rounded text-xs font-bold border border-accent-600;
+  }
 
 .status-draft {
-  @apply bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium;
+  @apply bg-secondary-200 text-white px-2 py-1 rounded text-xs font-medium border border-accent-600;
 }
 
 .status-closed {
-  @apply bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium;
+  @apply bg-white text-black px-2 py-1 rounded text-xs font-medium border border-accent-600;
 }
 
 /* Animation classes */
@@ -157,5 +230,207 @@ body {
   
   .sidebar.open {
     transform: translateX(0);
+  }
+}
+
+/* RTL Dropdown Global Fixes */
+/* Ensure all dropdown elements have proper spacing in RTL */
+[dir="rtl"] select,
+[dir="rtl"] .select,
+[dir="rtl"] .dropdown {
+  padding-right: 2rem !important;
+  padding-left: 0.75rem !important;
+}
+
+/* Fix for React Select components */
+[dir="rtl"] .react-select__control {
+  padding-right: 2rem !important;
+  padding-left: 0.75rem !important;
+}
+
+[dir="rtl"] .react-select__indicators {
+  right: auto !important;
+  left: 0.5rem !important;
+}
+
+/* Fix for custom dropdown components */
+[dir="rtl"] .dropdown-arrow {
+  right: auto !important;
+  left: 0.5rem !important;
+}
+
+/* Ensure proper spacing for all form selects */
+[dir="rtl"] .form-select,
+[dir="rtl"] .input-field-select {
+  padding-right: 2rem !important;
+  padding-left: 0.75rem !important;
+  background-position: left 0.5rem center !important;
+}
+
+/* Fix for any remaining dropdown elements */
+[dir="rtl"] [class*="dropdown"],
+[dir="rtl"] [class*="select"] {
+  padding-right: 2rem !important;
+  padding-left: 0.75rem !important;
+}
+
+/* PWA Styles */
+.pwa-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.pwa-prompt-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.pwa-prompt-container h3 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.pwa-prompt-container p {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.pwa-prompt-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.pwa-prompt-buttons button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pwa-prompt-buttons button:first-child {
+  background: #db0000;
+  color: white;
+  border: none;
+}
+
+.pwa-prompt-buttons button:first-child:hover {
+  background: #831010;
+}
+
+.pwa-prompt-buttons button:last-child {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.pwa-prompt-buttons button:last-child:hover {
+  background: #f9fafb;
+  color: #374151;
+}
+
+/* Offline indicator styles */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #f59e0b;
+  color: #000;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.offline-indicator button {
+  background: #d97706;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.offline-indicator button:hover {
+  background: #b45309;
+}
+
+/* PWA Install button styles */
+.pwa-install-button {
+  background: #db0000;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pwa-install-button:hover {
+  background: #831010;
+  transform: translateY(-1px);
+}
+
+.pwa-install-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile PWA optimizations */
+@media (max-width: 768px) {
+  .pwa-prompt-container {
+    margin: 16px;
+    padding: 20px;
+  }
+  
+  .pwa-prompt-buttons {
+    flex-direction: column;
+  }
+  
+  .pwa-prompt-buttons button {
+    width: 100%;
+  }
+}
+
+/* PWA Safe area for mobile devices */
+@supports (padding: max(0px)) {
+  .pwa-safe-area {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
   }
 }

@@ -109,6 +109,106 @@ const talentProfileSchema = new mongoose.Schema({
     }
   }],
   
+  // Showreel Videos
+  showreel: [{
+    title: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    url: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    platform: {
+      type: String,
+      enum: ['youtube', 'vimeo', 'instagram', 'tiktok', 'other'],
+      default: 'youtube'
+    },
+    description: {
+      type: String,
+      maxlength: 500
+    },
+    duration: Number, // in seconds
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
+  // Experience
+  experience: [{
+    title: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    company: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    projectType: {
+      type: String,
+      enum: ['film', 'tv_series', 'commercial', 'theater', 'music_video', 'documentary', 'web_series', 'other'],
+      required: true
+    },
+    role: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    startDate: {
+      type: Date,
+      required: true
+    },
+    endDate: Date, // null for current position
+    description: {
+      type: String,
+      maxlength: 1000
+    },
+    director: String,
+    productionCompany: String,
+    isCurrent: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  
+  // Education
+  education: [{
+    degree: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    institution: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    field: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    startDate: {
+      type: Date,
+      required: true
+    },
+    endDate: Date, // null for current education
+    grade: String,
+    description: {
+      type: String,
+      maxlength: 500
+    },
+    isCurrent: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  
   // Contact Information
   phoneNumber: {
     type: String,
@@ -129,6 +229,13 @@ const talentProfileSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isFeatured: {
+    type: Boolean,
+    default: false
+  },
+  featuredAt: {
+    type: Date
   },
   
   // Stats
@@ -174,6 +281,39 @@ talentProfileSchema.virtual('age').get(function() {
   }
   
   return age;
+});
+
+// Virtual for full name
+talentProfileSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`.trim();
+});
+
+// Virtual for display name (prioritizes artistic name)
+talentProfileSchema.virtual('displayName').get(function() {
+  return this.artisticName || this.fullName;
+});
+
+// Pre-save middleware to sync names with user
+talentProfileSchema.pre('save', async function(next) {
+  // Only run this if names are being modified
+  if (this.isModified('firstName') || this.isModified('lastName')) {
+    try {
+      const User = require('./User');
+      await User.findByIdAndUpdate(
+        this.user,
+        { 
+          firstName: this.firstName,
+          lastName: this.lastName
+        },
+        { new: true }
+      );
+    } catch (error) {
+      console.error('Error syncing names with user in TalentProfile:', error);
+      // Don't block the save operation
+    }
+  }
+  
+  next();
 });
 
 // Ensure virtual fields are serialized

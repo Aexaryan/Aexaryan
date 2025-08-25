@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import axios from 'axios';
+import ReportsAgainstMe from '../../components/Reports/ReportsAgainstMe';
+import api from '../../utils/api';
 import {
   BriefcaseIcon,
   DocumentTextIcon,
@@ -11,7 +12,8 @@ import {
   PlusIcon,
   CheckCircleIcon,
   ClockIcon,
-  XCircleIcon
+  XCircleIcon,
+  FlagIcon
 } from '@heroicons/react/24/outline';
 
 const TalentDashboard = () => {
@@ -19,6 +21,7 @@ const TalentDashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentApplications, setRecentApplications] = useState([]);
   const [recentCastings, setRecentCastings] = useState([]);
+  const [reportsStats, setReportsStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,15 +30,17 @@ const TalentDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsRes, applicationsRes, castingsRes] = await Promise.all([
-        axios.get('/talents/me/stats'),
-        axios.get('/applications/me?limit=5'),
-        axios.get('/castings?limit=6')
+      const [statsRes, applicationsRes, castingsRes, reportsStatsRes] = await Promise.all([
+        api.get('/talents/me/stats'),
+        api.get('/applications/me?limit=5'),
+        api.get('/castings?limit=6'),
+        api.get('/reports/stats/overview')
       ]);
 
       setStats(statsRes.data.stats);
       setRecentApplications(applicationsRes.data.applications || []);
       setRecentCastings(castingsRes.data.castings || []);
+      setReportsStats(reportsStatsRes.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -121,7 +126,7 @@ const TalentDashboard = () => {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -177,9 +182,23 @@ const TalentDashboard = () => {
             </div>
           </div>
         </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <FlagIcon className="h-8 w-8 text-red-600" />
+            </div>
+            <div className="mr-4">
+              <div className="text-2xl font-bold text-gray-900">
+                {reportsStats?.reportsAgainstMe || 0}
+              </div>
+              <div className="text-sm text-gray-600">گزارشات علیه من</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Applications */}
         <div className="card">
           <div className="flex items-center justify-between mb-6">
@@ -277,10 +296,13 @@ const TalentDashboard = () => {
             </div>
           )}
         </div>
+
+        {/* Reports Against Me */}
+        <ReportsAgainstMe />
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           to="/talent/profile"
           className="card hover:shadow-md transition-shadow cursor-pointer"
@@ -319,6 +341,19 @@ const TalentDashboard = () => {
             </div>
             <h3 className="font-medium text-gray-900 mb-2">درخواست‌های من</h3>
             <p className="text-sm text-gray-600">وضعیت درخواست‌هایتان را پیگیری کنید</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/talent/reports"
+          className="card hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FlagIcon className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="font-medium text-gray-900 mb-2">گزارشات من</h3>
+            <p className="text-sm text-gray-600">گزارشات ارسالی و علیه خود را مدیریت کنید</p>
           </div>
         </Link>
       </div>

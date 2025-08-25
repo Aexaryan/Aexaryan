@@ -4,6 +4,14 @@ const User = require('../models/User');
 const TalentProfile = require('../models/TalentProfile');
 const CastingDirectorProfile = require('../models/CastingDirectorProfile');
 const { auth } = require('../middleware/auth');
+const { 
+  commonValidations, 
+  handleValidationErrors,
+  rateLimiters,
+  generateCSRFToken,
+  validateCSRFToken 
+} = require('../middleware/security');
+const { body } = require('express-validator');
 
 const router = express.Router();
 
@@ -14,19 +22,21 @@ const generateToken = (userId) => {
   });
 };
 
-// Register
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password, role, firstName, lastName } = req.body;
-
-    // Validation
-    if (!email || !password || !role || !firstName || !lastName) {
-      return res.status(400).json({ error: 'تمام فیلدهای ضروری را پر کنید' });
-    }
-
-    if (!['talent', 'casting_director'].includes(role)) {
-      return res.status(400).json({ error: 'نقش کاربری نامعتبر' });
-    }
+// Register with validation
+router.post('/register', 
+  rateLimiters.register,
+  [
+    commonValidations.email,
+    commonValidations.password,
+    commonValidations.name,
+    body('role')
+      .isIn(['talent', 'casting_director'])
+      .withMessage('نقش کاربری نامعتبر')
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const { email, password, role, firstName, lastName } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -38,6 +48,8 @@ router.post('/register', async (req, res) => {
     const user = new User({
       email: email.toLowerCase(),
       password,
+      firstName,
+      lastName,
       role
     });
 
@@ -78,7 +90,10 @@ router.post('/register', async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
-        isVerified: user.isVerified
+        isVerified: user.isVerified,
+        identificationStatus: user.identificationStatus || 'not_submitted',
+        firstName: user.firstName || '',
+        lastName: user.lastName || ''
       }
     });
   } catch (error) {
@@ -87,15 +102,16 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validation
-    if (!email || !password) {
-      return res.status(400).json({ error: 'ایمیل و رمز عبور را وارد کنید' });
-    }
+// Login with validation
+router.post('/login', 
+  [
+    commonValidations.email,
+    body('password').notEmpty().withMessage('رمز عبور را وارد کنید')
+  ],
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const { email, password } = req.body;
 
     // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
@@ -125,7 +141,10 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        identificationStatus: user.identificationStatus || 'not_submitted',
+        firstName: user.firstName || '',
+        lastName: user.lastName || ''
       }
     });
   } catch (error) {
@@ -133,6 +152,9 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'خطا در ورود' });
   }
 });
+
+// Get CSRF token
+router.get('/csrf-token', generateCSRFToken);
 
 // Get current user
 router.get('/me', auth, async (req, res) => {
@@ -153,7 +175,10 @@ router.get('/me', auth, async (req, res) => {
         role: req.user.role,
         isVerified: req.user.isVerified,
         lastLogin: req.user.lastLogin,
-        createdAt: req.user.createdAt
+        createdAt: req.user.createdAt,
+        identificationStatus: req.user.identificationStatus || 'not_submitted',
+        firstName: req.user.firstName || '',
+        lastName: req.user.lastName || ''
       },
       profile
     });

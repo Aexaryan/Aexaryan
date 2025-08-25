@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import axios from 'axios';
+import CastingWarningModal from '../../components/Common/CastingWarningModal';
+import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import {
   ArrowRightIcon,
@@ -25,6 +26,7 @@ const JobDetails = () => {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [applicationData, setApplicationData] = useState({
     coverMessage: ''
   });
@@ -35,7 +37,7 @@ const JobDetails = () => {
 
   const fetchCastingDetails = async () => {
     try {
-      const response = await axios.get(`/castings/${id}`);
+      const response = await api.get(`/castings/${id}`);
       setCasting(response.data.casting);
       setHasApplied(response.data.hasApplied);
     } catch (error) {
@@ -57,12 +59,13 @@ const JobDetails = () => {
 
     setApplying(true);
     try {
-      await axios.post('/applications', {
+      await api.post('/applications', {
         castingId: casting._id,
         coverMessage: applicationData.coverMessage
       });
       
-      setHasApplied(true);
+      // Refresh casting details to get updated hasApplied status
+      await fetchCastingDetails();
       setShowApplicationForm(false);
       toast.success('درخواست شما با موفقیت ارسال شد');
     } catch (error) {
@@ -71,6 +74,19 @@ const JobDetails = () => {
     } finally {
       setApplying(false);
     }
+  };
+
+  const handleStartApplication = () => {
+    setShowWarningModal(true);
+  };
+
+  const handleWarningConfirm = () => {
+    setShowWarningModal(false);
+    setShowApplicationForm(true);
+  };
+
+  const handleWarningCancel = () => {
+    setShowWarningModal(false);
   };
 
   const getProjectTypeText = (type) => {
@@ -218,10 +234,11 @@ const JobDetails = () => {
               </div>
             ) : (
               <button
-                onClick={() => setShowApplicationForm(true)}
-                className="btn-primary"
+                onClick={handleStartApplication}
+                disabled={applying || hasApplied}
+                className="btn-primary disabled:opacity-50"
               >
-                ارسال درخواست
+                {applying ? 'در حال ارسال...' : hasApplied ? 'درخواست ارسال شده' : 'ارسال درخواست'}
               </button>
             )}
           </div>
@@ -240,6 +257,31 @@ const JobDetails = () => {
               ))}
             </div>
           </div>
+
+          {/* Photos Gallery */}
+          {casting.photos && casting.photos.length > 0 && (
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">عکس‌های کستینگ</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {casting.photos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+                      <img
+                        src={photo.url}
+                        alt={photo.caption || `عکس کستینگ ${index + 1}`}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    {photo.caption && (
+                      <p className="mt-2 text-sm text-gray-600 text-center">
+                        {photo.caption}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Requirements */}
           {casting.requirements && (
@@ -314,7 +356,7 @@ const JobDetails = () => {
       </div>
 
       {/* Application Modal */}
-      {showApplicationForm && (
+      {showApplicationForm && !hasApplied && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
@@ -375,6 +417,15 @@ const JobDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Casting Warning Modal */}
+      <CastingWarningModal
+        isOpen={showWarningModal}
+        onClose={handleWarningCancel}
+        onConfirm={handleWarningConfirm}
+        castingTitle={casting?.title || "این پروژه"}
+        isLoading={false}
+      />
     </div>
   );
 };

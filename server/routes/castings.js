@@ -1,9 +1,124 @@
 const express = require('express');
 const Casting = require('../models/Casting');
 const Application = require('../models/Application');
-const { auth, requireCastingDirector, requireTalent } = require('../middleware/auth');
+const CastingDirectorProfile = require('../models/CastingDirectorProfile');
+const { auth, optionalAuth, requireCastingDirector, requireTalent } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Profile routes - must come before any dynamic routes
+// Update casting director profile
+router.put('/profile', auth, requireCastingDirector, async (req, res) => {
+  try {
+    const updates = req.body;
+    
+    // Remove fields that shouldn't be updated directly
+    delete updates.user;
+    delete updates.totalCastings;
+    delete updates.activeCastings;
+    delete updates.successfulCastings;
+    delete updates.createdAt;
+    delete updates.updatedAt;
+
+    const profile = await CastingDirectorProfile.findOneAndUpdate(
+      { user: req.user._id },
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!profile) {
+      return res.status(404).json({ error: 'پروفایل کارگردان یافت نشد' });
+    }
+
+    // Sync the updated names with the user model
+    if (updates.firstName || updates.lastName) {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          firstName: profile.firstName,
+          lastName: profile.lastName
+        },
+        { new: true }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'پروفایل با موفقیت به‌روزرسانی شد',
+      profile
+    });
+  } catch (error) {
+    console.error('Update casting director profile error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ error: 'خطا در اعتبارسنجی: ' + errors.join(', ') });
+    }
+    
+    res.status(500).json({ error: 'خطا در به‌روزرسانی پروفایل' });
+  }
+});
+
+// Get my casting director profile
+router.get('/profile', auth, requireCastingDirector, async (req, res) => {
+  try {
+    const profile = await CastingDirectorProfile.findOne({ user: req.user._id })
+      .populate('user', 'email createdAt lastLogin isVerified');
+
+    if (!profile) {
+      return res.status(404).json({ error: 'پروفایل کارگردان یافت نشد' });
+    }
+
+    res.json({
+      success: true,
+      profile
+    });
+  } catch (error) {
+    console.error('Get casting director profile error:', error);
+    res.status(500).json({ error: 'خطا در دریافت پروفایل' });
+  }
+});
+
+// Get casting director profile by ID (public)
+router.get('/profile/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const profile = await CastingDirectorProfile.findOne({ user: id })
+      .populate('user', 'firstName lastName email role identificationStatus');
+
+    if (!profile) {
+      return res.status(404).json({ error: 'پروفایل کارگردان یافت نشد' });
+    }
+
+    // Only return public information
+    const publicProfile = {
+      _id: profile._id,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      companyName: profile.companyName,
+      position: profile.position,
+      phoneNumber: profile.phoneNumber,
+      website: profile.website,
+      city: profile.city,
+      province: profile.province,
+      biography: profile.biography,
+      experience: profile.experience,
+      specialties: profile.specialties,
+      profileImage: profile.profileImage,
+      identificationStatus: profile.user.identificationStatus
+    };
+
+    res.json({
+      success: true,
+      profile: publicProfile
+    });
+  } catch (error) {
+    console.error('Get casting director profile by ID error:', error);
+    res.status(500).json({ error: 'خطا در دریافت پروفایل کارگردان' });
+  }
+});
 
 // Get all active castings (public)
 router.get('/', async (req, res) => {
@@ -106,14 +221,6 @@ router.get('/', async (req, res) => {
     
     const castings = await Casting.find(filter)
       .populate('castingDirector', 'email')
-      .populate({
-        path: 'castingDirector',
-        populate: {
-          path: 'castingDirector',
-          model: 'CastingDirectorProfile',
-          select: 'firstName lastName companyName isVerified'
-        }
-      })
       .sort(sortObject)
       .skip(skip)
       .limit(parseInt(limit))
@@ -147,18 +254,10 @@ router.get('/', async (req, res) => {
 });
 
 // Get casting by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const casting = await Casting.findById(req.params.id)
-      .populate('castingDirector', 'email')
-      .populate({
-        path: 'castingDirector',
-        populate: {
-          path: 'castingDirector',
-          model: 'CastingDirectorProfile',
-          select: 'firstName lastName companyName position isVerified profileImage'
-        }
-      });
+      .populate('castingDirector', 'email');
 
     if (!casting) {
       return res.status(404).json({ error: 'کستینگ یافت نشد' });
@@ -192,6 +291,13 @@ router.get('/:id', async (req, res) => {
 // Create new casting (casting directors only)
 router.post('/', auth, requireCastingDirector, async (req, res) => {
   try {
+    // Check if director is approved
+    if (req.user.identificationStatus !== 'approved') {
+      return res.status(403).json({ 
+        error: 'برای ایجاد کستینگ، ابتدا باید حساب کاربری شما تایید شود. لطفاً عکس شناسایی خود را آپلود کنید.' 
+      });
+    }
+
     const castingData = {
       ...req.body,
       castingDirector: req.user._id
@@ -202,14 +308,6 @@ router.post('/', auth, requireCastingDirector, async (req, res) => {
 
     // Populate casting director info
     await casting.populate('castingDirector', 'email');
-    await casting.populate({
-      path: 'castingDirector',
-      populate: {
-        path: 'castingDirector',
-        model: 'CastingDirectorProfile',
-        select: 'firstName lastName companyName'
-      }
-    });
 
     res.status(201).json({
       success: true,
@@ -408,14 +506,6 @@ router.get('/:id/applications', auth, requireCastingDirector, async (req, res) =
 
     const applications = await Application.find(filter)
       .populate('talent', 'email')
-      .populate({
-        path: 'talent',
-        populate: {
-          path: 'talent',
-          model: 'TalentProfile',
-          select: 'artisticName firstName lastName age height skills headshot city province'
-        }
-      })
       .sort(sortObject)
       .skip(skip)
       .limit(parseInt(limit));

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
-import axios from 'axios';
+import MyArticles from '../../components/Director/MyArticles';
+import api from '../../utils/api';
 import {
   BriefcaseIcon,
   DocumentTextIcon,
@@ -10,7 +11,9 @@ import {
   PlusIcon,
   CheckCircleIcon,
   ClockIcon,
-  UsersIcon
+  UsersIcon,
+  PencilIcon,
+  FlagIcon
 } from '@heroicons/react/24/outline';
 
 const DirectorDashboard = () => {
@@ -26,8 +29,8 @@ const DirectorDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const [statsRes, castingsRes] = await Promise.all([
-        axios.get('/applications/stats/summary'),
-        axios.get('/castings/me/castings?limit=5')
+        api.get('/applications/stats/summary'),
+        api.get('/castings/me/castings?limit=5')
       ]);
 
       setStats(statsRes.data.stats);
@@ -64,7 +67,7 @@ const DirectorDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -120,9 +123,23 @@ const DirectorDashboard = () => {
             </div>
           </div>
         </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <DocumentTextIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="mr-4">
+              <div className="text-2xl font-bold text-gray-900">
+                {stats?.totalArticles || 0}
+              </div>
+              <div className="text-sm text-gray-600">مقالات من</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Castings */}
         <div className="card">
           <div className="flex items-center justify-between mb-6">
@@ -137,31 +154,45 @@ const DirectorDashboard = () => {
             </Link>
           </div>
 
-          {recentCastings.length > 0 ? (
-            <div className="space-y-4">
-              {recentCastings.map((casting) => (
-                <div key={casting._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">
-                      {casting.title}
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                      <span>{casting.projectType}</span>
-                      <span className={`status-${casting.status}`}>
-                        {getStatusText(casting.status)}
-                      </span>
-                      <span>{casting.applicationStats?.total || 0} درخواست</span>
+                      {recentCastings.length > 0 ? (
+              <div className="space-y-0">
+                {recentCastings.map((casting, index) => (
+                  <React.Fragment key={casting._id}>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">
+                          {casting.title}
+                        </h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                          <span>{casting.projectType}</span>
+                          <span className={`status-${casting.status}`}>
+                            {getStatusText(casting.status)}
+                          </span>
+                          <span>{casting.applicationStats?.total || 0} درخواست</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/director/castings/${casting._id}/edit`}
+                          className="btn-outline btn-sm flex items-center"
+                        >
+                          <PencilIcon className="w-4 h-4 ml-1" />
+                          ویرایش
+                        </Link>
+                        <Link
+                          to={`/director/castings/${casting._id}/applications`}
+                          className="btn-outline btn-sm"
+                        >
+                          مشاهده
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                  <Link
-                    to={`/director/castings/${casting._id}/applications`}
-                    className="btn-outline btn-sm"
-                  >
-                    مشاهده
-                  </Link>
-                </div>
-              ))}
-            </div>
+                    {index < recentCastings.length - 1 && (
+                      <div className="h-px bg-gray-200 mx-4"></div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
           ) : (
             <div className="text-center py-8">
               <BriefcaseIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -184,7 +215,7 @@ const DirectorDashboard = () => {
           </h2>
 
           {stats?.totalApplications > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-0">
               <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                 <div className="flex items-center">
                   <ClockIcon className="w-5 h-5 text-yellow-600 ml-2" />
@@ -194,6 +225,8 @@ const DirectorDashboard = () => {
                   {stats?.pending || 0}
                 </span>
               </div>
+              
+              <div className="h-px bg-gray-200 mx-3"></div>
 
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <div className="flex items-center">
@@ -204,6 +237,8 @@ const DirectorDashboard = () => {
                   {stats?.reviewed || 0}
                 </span>
               </div>
+              
+              <div className="h-px bg-gray-200 mx-3"></div>
 
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center">
@@ -222,10 +257,13 @@ const DirectorDashboard = () => {
             </div>
           )}
         </div>
+
+        {/* My Articles */}
+        <MyArticles />
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           to="/director/castings/new"
           className="card hover:shadow-md transition-shadow cursor-pointer"
@@ -262,6 +300,19 @@ const DirectorDashboard = () => {
             </div>
             <h3 className="font-medium text-gray-900 mb-2">مدیریت کستینگ‌ها</h3>
             <p className="text-sm text-gray-600">کستینگ‌های خود را مدیریت کنید</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/director/reports"
+          className="card hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FlagIcon className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="font-medium text-gray-900 mb-2">گزارشات من</h3>
+            <p className="text-sm text-gray-600">گزارشات ارسالی و علیه خود را مدیریت کنید</p>
           </div>
         </Link>
       </div>

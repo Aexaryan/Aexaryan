@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Service Worker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Service Worker Fix</h1>
+        <p>This page will help you fix the infinite refresh issue caused by the service worker.</p>
+        
+        <div id="status" class="status info">
+            Click the buttons below to fix the service worker issue.
+        </div>
+        
+        <button onclick="unregisterServiceWorker()">Unregister Service Worker</button>
+        <button onclick="clearAllCaches()">Clear All Caches</button>
+        <button onclick="reloadApp()">Reload Application</button>
+        <button onclick="checkServiceWorker()">Check Service Worker Status</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+        }
+
+        async function unregisterServiceWorker() {
+            try {
+                updateStatus('Unregistering service worker...', 'info');
+                
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        addResult(`Unregistered service worker: ${registration.scope}`, 'success');
+                    }
+                    
+                    if (registrations.length === 0) {
+                        addResult('No service workers found to unregister', 'info');
+                    }
+                    
+                    updateStatus('Service worker unregistered successfully!', 'success');
+                } else {
+                    updateStatus('Service Worker not supported in this browser', 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error unregistering service worker: ${error.message}`, 'error');
+                addResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function clearAllCaches() {
+            try {
+                updateStatus('Clearing all caches...', 'info');
+                
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    
+                    for (let cacheName of cacheNames) {
+                        await caches.delete(cacheName);
+                        addResult(`Deleted cache: ${cacheName}`, 'success');
+                    }
+                    
+                    if (cacheNames.length === 0) {
+                        addResult('No caches found to clear', 'info');
+                    }
+                    
+                    updateStatus('All caches cleared successfully!', 'success');
+                } else {
+                    updateStatus('Cache API not supported in this browser', 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error clearing caches: ${error.message}`, 'error');
+                addResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function reloadApp() {
+            updateStatus('Redirecting to main application...', 'info');
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000';
+            }, 1000);
+        }
+
+        async function checkServiceWorker() {
+            try {
+                updateStatus('Checking service worker status...', 'info');
+                
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    if (registrations.length === 0) {
+                        addResult('No service workers registered', 'success');
+                    } else {
+                        registrations.forEach((registration, index) => {
+                            addResult(`Service Worker ${index + 1}: ${registration.scope}`, 'info');
+                            addResult(`  - Active: ${registration.active ? 'Yes' : 'No'}`, 'info');
+                            addResult(`  - Waiting: ${registration.waiting ? 'Yes' : 'No'}`, 'info');
+                            addResult(`  - Installing: ${registration.installing ? 'Yes' : 'No'}`, 'info');
+                        });
+                    }
+                    
+                    updateStatus('Service worker status checked!', 'success');
+                } else {
+                    updateStatus('Service Worker not supported in this browser', 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error checking service worker: ${error.message}`, 'error');
+                addResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check service worker status on page load
+        window.addEventListener('load', () => {
+            checkServiceWorker();
+        });
+    </script>
+</body>
+</html>

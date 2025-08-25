@@ -158,6 +158,39 @@ router.post('/portfolio', auth, requireTalent, upload.array('images', 5), async 
   }
 });
 
+// Upload casting photo
+router.post('/casting-photo', auth, requireCastingDirector, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'فایل تصویری انتخاب نشده است' });
+    }
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: 'casting-platform/casting-photos',
+      transformation: [
+        { width: 800, height: 600, crop: 'fill' },
+        { quality: 'auto', fetch_format: 'auto' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      message: 'عکس کستینگ با موفقیت آپلود شد',
+      url: result.secure_url,
+      publicId: result.public_id
+    });
+  } catch (error) {
+    console.error('Upload casting photo error:', error);
+    
+    if (error.message.includes('فقط فایل‌های تصویری')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'خطا در آپلود عکس کستینگ' });
+  }
+});
+
 // Delete portfolio image
 router.delete('/portfolio/:imageId', auth, requireTalent, async (req, res) => {
   try {

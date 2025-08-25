@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
+import StartConversationModal from '../../components/Messaging/StartConversationModal';
 import toast from 'react-hot-toast';
 import {
   ArrowRightIcon,
@@ -11,7 +12,8 @@ import {
   EyeIcon,
   ClockIcon,
   DocumentTextIcon,
-  FunnelIcon
+  FunnelIcon,
+  ChatBubbleLeftIcon
 } from '@heroicons/react/24/outline';
 
 const CastingApplications = () => {
@@ -21,6 +23,8 @@ const CastingApplications = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedApplications, setSelectedApplications] = useState([]);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [selectedTalent, setSelectedTalent] = useState(null);
 
   useEffect(() => {
     fetchCastingApplications();
@@ -35,8 +39,8 @@ const CastingApplications = () => {
       }
 
       const [castingRes, applicationsRes] = await Promise.all([
-        axios.get(`/castings/${id}`),
-        axios.get(`/castings/${id}/applications?${params.toString()}`)
+        api.get(`/castings/${id}`),
+        api.get(`/castings/${id}/applications?${params.toString()}`)
       ]);
 
       setCasting(castingRes.data.casting);
@@ -50,7 +54,7 @@ const CastingApplications = () => {
 
   const handleStatusChange = async (applicationId, newStatus, notes = '') => {
     try {
-      await axios.patch(`/applications/${applicationId}/status`, {
+      await api.patch(`/applications/${applicationId}/status`, {
         status: newStatus,
         directorNotes: notes
       });
@@ -70,7 +74,7 @@ const CastingApplications = () => {
     }
 
     try {
-      await axios.patch('/applications/bulk/status', {
+      await api.patch('/applications/bulk/status', {
         applicationIds: selectedApplications,
         status: newStatus
       });
@@ -328,6 +332,16 @@ const CastingApplications = () => {
                       >
                         مشاهده پروفایل
                       </Link>
+                      <button
+                        onClick={() => {
+                          setSelectedTalent(application.talent);
+                          setShowMessageModal(true);
+                        }}
+                        className="btn-outline btn-sm flex items-center gap-1"
+                      >
+                        <ChatBubbleLeftIcon className="w-4 h-4" />
+                        پیام
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -389,6 +403,19 @@ const CastingApplications = () => {
             </button>
           )}
         </div>
+      )}
+
+      {/* Start Conversation Modal */}
+      {selectedTalent && (
+        <StartConversationModal
+          isOpen={showMessageModal}
+          onClose={() => {
+            setShowMessageModal(false);
+            setSelectedTalent(null);
+          }}
+          talent={selectedTalent}
+          casting={casting}
+        />
       )}
     </div>
   );

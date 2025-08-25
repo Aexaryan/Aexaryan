@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../utils/api';
 import LoadingSpinner from '../../components/Common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import ReportButton from '../../components/Common/ReportButton';
 import {
   PlusIcon,
   EyeIcon,
@@ -40,7 +41,7 @@ const MyCastings = () => {
       params.append('page', page);
       params.append('limit', 10);
 
-      const response = await axios.get(`/castings/me/castings?${params.toString()}`);
+      const response = await api.get(`/castings/me/castings?${params.toString()}`);
       setCastings(response.data.castings || []);
       setPagination(response.data.pagination || {});
     } catch (error) {
@@ -57,7 +58,7 @@ const MyCastings = () => {
 
   const handleStatusChange = async (castingId, newStatus) => {
     try {
-      await axios.patch(`/castings/${castingId}/status`, { status: newStatus });
+      await api.patch(`/castings/${castingId}/status`, { status: newStatus });
       fetchCastings(pagination.currentPage);
       toast.success('وضعیت کستینگ تغییر کرد');
     } catch (error) {
@@ -67,10 +68,10 @@ const MyCastings = () => {
   };
 
   const handleDeleteCasting = async (castingId) => {
-    if (!confirm('آیا از حذف این کستینگ مطمئن هستید؟')) return;
+    if (!window.confirm('آیا از حذف این کستینگ مطمئن هستید؟')) return;
 
     try {
-      await axios.delete(`/castings/${castingId}`);
+      await api.delete(`/castings/${castingId}`);
       fetchCastings(pagination.currentPage);
       toast.success('کستینگ حذف شد');
     } catch (error) {
@@ -234,6 +235,14 @@ const MyCastings = () => {
                   </select>
 
                   <Link
+                    to={`/director/castings/${casting._id}/edit`}
+                    className="btn-outline btn-sm flex items-center"
+                  >
+                    <PencilIcon className="w-4 h-4 ml-1" />
+                    ویرایش
+                  </Link>
+
+                  <Link
                     to={`/director/castings/${casting._id}/applications`}
                     className="btn-outline btn-sm flex items-center"
                   >
@@ -243,7 +252,7 @@ const MyCastings = () => {
 
                   <button
                     onClick={() => handleDeleteCasting(casting._id)}
-                    className="btn-secondary btn-sm text-red-600 hover:bg-red-50 flex items-center"
+                    className="bg-secondary-200 hover:bg-secondary-300 text-white p-2 rounded flex items-center transition-colors duration-200"
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>
@@ -302,6 +311,14 @@ const MyCastings = () => {
                     <span className="text-red-600">منقضی شده</span>
                   )}
                 </div>
+                
+                <ReportButton
+                  reportType="casting"
+                  targetId={casting._id}
+                  targetTitle={casting.title}
+                  variant="icon"
+                  className="text-gray-400 hover:text-red-500"
+                />
               </div>
             </div>
           ))}
